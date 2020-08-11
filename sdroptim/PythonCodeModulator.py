@@ -299,6 +299,7 @@ def getIndirectDataLoader(gui_params):
 def getHPOMainFunction(gui_params, ObjectiveFunction_names): # 입력 시간 등
     pre = '''
 if __name__ == "__main__":
+    import optuna
     import sdroptim
     #
     stepwise, task_and_algorithm = sdroptim.check_stepwise_available(json_file_name)
