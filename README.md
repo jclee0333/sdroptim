@@ -1,4 +1,2 @@
-# Hyperparameter Optimization for the KISTI Science Data Repository (SDRoptim)
-Hyperparameter Optimization for the KISTI Science Data Repository
-
+# HPOtest
 pip install sdroptim
