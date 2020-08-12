@@ -66,8 +66,25 @@ def get_batch_script(gui_params):
     #
     time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
     #
-    cpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'cpu')
-    gpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'gpu')
+    if 'algorithm' in gui_params:
+        cpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'cpu')
+        gpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'gpu')
+    else:
+        if 'n_nodes' in gui_params['hpo_system_attr']:
+            if 'task_type' in gui_params['hpo_system_attr']:
+                if gui_params['hpo_system_attr']['task_type']=='cpu':
+                    cpuhas=1
+                    gpuhas=0
+                elif gui_params['hpo_system_attr']['task_type']=='gpu':
+                    cpuhas=0
+                    gpuhas=1
+                elif gui_params['hpo_system_attr']['task_type']=='both'
+                    cpuhas=1
+                    gpuhas=1
+                else:
+                    raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
+        else:
+            raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
     cpu_task = 1
     gpu_task = 1
     if len(cpuhas)>0:
@@ -106,7 +123,7 @@ def get_batch_script(gui_params):
             env_script = "source activate "+env_name + "\n"
         else:
             env_script = ""
-        with open(jname+"_running_with_custom_env.sh", 'w') as f:
+        with open(jobpath+os.sep+jname+"_running_with_custom_env.sh", 'w') as f:
             sh_scripts = jobdir+env_script +"cd ${JOBDIR}\npython ${JOBDIR}/"+jname+"_generated"+".py\n"
             f.write(sh_scripts)
     ## JOB init @ portal // modified 0812
@@ -141,79 +158,6 @@ def get_batch_script(gui_params):
     job_done+="-d Status=SUCCESS\n"
     results = prefix+paths+job_init+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
     return results    
-#    
-
-
-def get_batch_script_old(gui_params, cpus, gpus, types="python"):
-    uname=gui_params['hpo_system_attr']['user_name']
-    jname=gui_params['hpo_system_attr']['job_name']
-    sname=gui_params['hpo_system_attr']['study_name']
-    ws_id=gui_params['hpo_system_attr']['workspace_id']
-    job_id=gui_params['hpo_system_attr']['job_id']
-    #
-    time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
-    n_cpu=gui_params['hpo_system_attr']['n_cpu'] 
-    n_gpu=gui_params['hpo_system_attr']['n_gpu'] 
-    from math import ceil
-    nodes = ceil(n_gpu/2)
-    ntasks = n_cpu + n_gpu
-    rank_0_for_cpu_job = 1 if len(cpus)>0 else 0
-    rank_0_for_gpu_job = 1 if len(gpus)>0 else 0
-    ntasks += rank_0_for_cpu_job + rank_0_for_gpu_job
-    #
-    prefix ='#!/bin/bash\n'
-    prefix+='#SBATCH --job-name='+ jname +'\n'
-    prefix+='#SBATCH --output=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/ws'+str(ws_id).zfill(3)+'/job-ai/job'+str(job_id).zfill(3)+'/std.out\n'
-    prefix+='#SBATCH --error=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/ws'+str(ws_id).zfill(3)+'/job-ai/job'+str(job_id).zfill(3)+'/std.err\n'
-    prefix+='#SBATCH --nodes='+str(nodes)+'\n'
-    prefix+='#SBATCH --ntasks='+str(ntasks)+'\n'
-    #prefix+='#SBATCH --ntasks-per-node=2\n'#+str(n_cpu/nodes)+'\n'
-    #prefix+='#SBATCH --gres=gpu:'+str(n_gpu)+'\n'
-    import datetime
-    timed=datetime.timedelta(seconds=time_deadline_sec)
-    n_days = timed.days
-    rest_seconds = timed.seconds
-    timed_without_days=datetime.timedelta(seconds=rest_seconds)
-    rval=str(n_days)+"-"+str(timed_without_days)
-    #
-    prefix+='#SBATCH --time='+ rval +'\n' # e.g., 34:10:33
-    prefix+='#SBATCH --exclusive\n'
-    paths = 'HOME=/EDISON/SCIDATA/sdr/draft/'+uname+'\n'
-    jobdir= 'JOBDIR=/home/'+uname+'/workspace/ws'+str(ws_id).zfill(3)+'/job-ai/job'+str(job_id).zfill(3)+'\n'
-    paths += jobdir
-    #
-    rval_gpu = ""
-    rval_cpu = ""
-    if len(gpus)>0:
-        rval_gpu = get_each_script(resources_types="gpu",n_resources=n_gpu, gui_params=gui_params, types=types, jname=jname, uname=uname, jobdir=jobdir)
-    if len(cpus)>0:
-        rval_cpu = get_each_script(resources_types="cpu",n_resources=n_cpu, gui_params=gui_params, types=types, jname=jname, uname=uname, jobdir=jobdir)
-    results = prefix+paths+rval_gpu+rval_cpu
-    return results
-
-def get_each_script(resources_types, n_resources, gui_params, types, jname, uname, jobdir):
-    if types=="scripts":
-        if 'env_name' in gui_params['hpo_system_attr']:
-            env_name = gui_params['hpo_system_attr']['env_name']
-            env_script = "source activate "+env_name + "\n"
-        else:
-            env_script = ""
-        with open(jname+"_"+resources_types+".sh", 'w') as f:
-            sh_scripts = jobdir+env_script +"cd ${JOBDIR}\npython ${JOBDIR}/"+jname+"_generated_"+resources_types+".py\n"
-            f.write(sh_scripts)
-    ##### mpirun command
-    mpirun_command = "/usr/local/bin/mpirun -np " + str(n_resources+1)
-    mpirun_options = "-x PATH -x HOROVOD_MPI_THREADS_DISABLE=1 -x NCCL_SOCKET_IFNAME=^docker0,lo -mca btl_tcp_if_exclude lo,docker0  -mca pml ob1"
-    ##### singularity command
-    singularity_command = "singularity exec --nv"
-    user_home_mount_for_custom_enviromnent = "-H ${HOME}:"+"/home/"+uname        # final
-    #user_home_mount_for_custom_enviromnent = "-H /home/"+uname+":"+"/home/"+uname  # my custom
-    user_jobdir_mount = ""#"-B ${JOBDIR}:${JOBDIR}"                               # final
-    #user_jobdir_mount = "-B /home/jclee/automl_jclee:/${JOBDIR}"                 # my custom
-    singularity_image = "/EDISON/SCIDATA/singularity-images/userenv3"
-    running_command = ("python ${JOBDIR}/"+jname+"_generated_"+resources_types+".py") if types == "python" else ("/bin/bash ${JOBDIR}/"+jname+"_"+resources_types+".sh")
-    rval = mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n"
-    return rval    
 #    
 
 ##############################################################################################
