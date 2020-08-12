@@ -78,7 +78,7 @@ def get_batch_script(gui_params):
                 elif gui_params['hpo_system_attr']['task_type']=='gpu':
                     cpuhas=0
                     gpuhas=1
-                elif gui_params['hpo_system_attr']['task_type']=='both'
+                elif gui_params['hpo_system_attr']['task_type']=='both':
                     cpuhas=1
                     gpuhas=1
                 else:
