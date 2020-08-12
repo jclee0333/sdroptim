@@ -20,6 +20,85 @@ class ModObjectiveFunctionWrapper(object):
         except:
             optuna.exceptions.OptunaError("[err] object function cannot be generated.")
             raise optuna.exceptions.TrialPruned()
+
+### save module added @ 20200812
+
+def retrieve_model(algorithm_name, model, trial_number, score, top_n_all = 10, top_n_each_algo = 3, direction='maximize'):
+    ''' top_n_all and top_n_each_algo are at least >= 1'''
+    import os, glob
+    ##
+    output_model_path = "output_models/"
+    if not os.path.exists(output_model_path):
+        os.mkdir(output_model_path)
+    ##
+    algorithm_path = output_model_path + algorithm_name+ "/"
+    if not os.path.exists(algorithm_path):
+        os.mkdir(algorithm_path)
+    ##
+    top_n_path = output_model_path + "top_"+str(top_n_all)+"/"
+    if not os.path.exists(top_n_path):
+        os.mkdir(top_n_path)
+    ##
+    ##
+    file_prefix = str(trial_number)+"__"+algorithm_name+"__"+str(score)
+    extension = ".pt" if algorithm_name == 'DL_Pytorch' else ".pkl"
+    #    
+    compare_and_search(target_path=algorithm_path, top_n=top_n_each_algo, specific_extension=extension, \
+        algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
+        trial_number=trial_number, score=score, direction=direction)
+
+    compare_and_search(target_path=top_n_path, top_n=top_n_all, specific_extension=None,                \
+        algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
+        trial_number=trial_number, score=score, direction=direction)
+
+    ######### part 1 remaining top_n_each_algo
+
+def compare_and_search(target_path, top_n, specific_extension, algorithm_name, file_prefix, model, trial_number, score, direction):
+    import glob, os
+    if specific_extension is None:
+        extension = ""
+    else:
+        extension = specific_extension
+    cur_files = glob.glob(target_path+"*"+extension)
+    if len(cur_files) >= top_n:
+        cur_scores = {}
+        for each in cur_files:
+            each_score = float(os.path.splitext(each)[0].split("__")[-1])
+            cur_scores.update({each:each_score})
+        y_hat=sorted(cur_scores.items(), key=(lambda x:x[1]), reverse=(False if direction=='maximize' else True))
+        # y_hat order: [min(bad) ....... >> ... max(good)] when maximize
+        # y_hat order: [max(bad) ....... >> ... min(good)] when minimize
+        should_be_remove_num = len(cur_files) - top_n
+        i = -1
+        if should_be_remove_num>0:
+            for i in range(0,should_be_remove_num):
+                target_file_name = y_hat[i][0]
+                os.remove(target_file_name)
+        target_file_name = y_hat[i+1][0]
+        bad_score = y_hat[i+1][1]
+        ## comparing
+        if direction == 'maximize':
+            if score > bad_score: # for better current score, replace it
+                os.remove(target_file_name)
+                savemodel(algorithm_name, model, target_path+file_prefix)
+        elif direction == 'minimize':
+            if score < bad_score: # for better current score, replace it
+                os.remove(target_file_name)
+                savemodel(algorithm_name, model, target_path+file_prefix)
+    else:
+        savemodel(algorithm_name, model, target_path+file_prefix)
+
+def savemodel(algorithm_name, model, file_prefix):
+    # add first
+    extension = ".pt" if algorithm_name == 'DL_Pytorch' else ".pkl"
+    if algorithm_name == 'DL_Pytorch':
+        import torch
+        torch.save(model, file_prefix+extension)
+    else:
+        import joblib
+        extension = ".pkl"
+        joblib.dump(model, file_prefix+extension) 
+
 ######################################
 ## get_argparse and check_stepwise_available are moved @ 20200810 by jclee
 ##

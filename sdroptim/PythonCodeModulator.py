@@ -746,10 +746,21 @@ def getObjectiveFunction_(resources, gui_params, indirect=False, stepwise=False,
         distribution_context += "# integrated algorithm list\ntrial.set_user_attr('algorithm_name', algorithm_name)\n"
         ######
         results += getIndent(distribution_context, indent_level=8) + getAlgorithmBody(gui_params, algorithm=each_algorithm, r_val=r_val, for_hpo_tune=True, indirect=indirect, stepwise=stepwise)
+        #####
+        ## auto saving high performance models.. (top-10 for all algo., top-1 for each algo.)
+        top_n_all = gui_params['hpo_system_attr']['top_n_all'] if 'top_n_all' in gui_params['hpo_system_attr'] else 10
+        top_n_each_algo = gui_params['hpo_system_attr']['top_n_each_algo'] if 'top_n_each_algo' in gui_params['hpo_system_attr'] else 3
+        #
         if 'cv' in searching_space[gui_params['task']][each_algorithm]:    
-            rval_each_algorithm = "return scores.mean()"
+            rval_score_str = "scores.mean()"
         else:
-            rval_each_algorithm = "return confidence"
+            rval_score_str = "confidence"
+        #
+        model_name = "model" if each_algorithm == 'DL_Pytorch' else "clf"
+        rval_each_algorithm = "sdroptim.retrieve_model(altorithm_name, "+model_name+", trial.number, "+rval_score_str + \
+                              ", top_n_all = "+ str(top_n_all)+", top_n_each_algo = " + str(top_n_each_algo) + ")\n"
+        rval_each_algorithm+= "return "+rval_score_str
+        #
         results = results + getIndent(rval_each_algorithm, indent_level=8)
         distribution_context = "" # refresh for another algorithm
     return results
