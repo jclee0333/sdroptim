@@ -18,14 +18,51 @@ n_jobs = 15 # cpu jobs
 
 ##############################################################################
 
-import json
+import json, uuid, os, datetime
 
-def get_batch_script(gui_params, types="python"):
-    uname=gui_params['hpo_system_attr']['user_name']
-    jname=gui_params['hpo_system_attr']['job_name']
-    sname=gui_params['hpo_system_attr']['study_name']
-    wsname=gui_params['hpo_system_attr']['workspace_name']
-    job_id=gui_params['hpo_system_attr']['job_id']
+def get_jobpath_with_attr(gui_params=None):
+    if not gui_params:
+        gui_params = {'hpo_system_attr':{}} # set default 
+    user_home1 = "/EDISON/SCIDATA/sdr/draft/"
+    user_home2 = "/science-data/sdr/draft/"
+    user_homes = [user_home1, user_home2]
+    cwd=os.getcwd()
+    if 'user_name' in gui_params['hpo_system_attr']:
+        uname=gui_params['hpo_system_attr']['user_name'] 
+    else:
+        find_token = False
+        for each in user_homes:
+            if cwd.startswith(each):
+                try:
+                    uname = cwd.split(each)[1].split('/')[0]
+                    find_token=True
+                    break
+                except:
+                    pass
+        if not find_token:
+            raise ValueError("cannot find user_id, please check the current user directory.")
+    #jname=gui_params['hpo_system_attr']['job_name'] #'job_name' is deprecated @ 0.0.2
+    sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())
+    jname=sname+"_in_"+uname
+    ##########################
+    if 'workspace_name' in gui_params['hpo_system_attr']:
+        wsname=gui_params['hpo_system_attr']['workspace_name'] # directory name (MANDATORY)    
+    else:
+        wsname=cwd.split('/workspace/')[1].split('/')[0]
+    ###########################
+    if 'job_id' in gui_params['hpo_system_attr']:
+        job_id=gui_params['hpo_system_attr']['job_id'] # directory name
+    else:
+        timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        job_id="job-"+timenow
+    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)
+    if not os.path.exists(jobpath):
+        os.mkdir(jobpath)
+    return jobpath, (uname, sname, jname, wsname, job_id)
+
+def get_batch_script(gui_params):
+    jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
+    ###########################
     #
     time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
     #
@@ -48,7 +85,7 @@ def get_batch_script(gui_params, types="python"):
     prefix+='#SBATCH --ntasks='+str(ntasks)+'\n'
     prefix+='#SBATCH --ntasks-per-node='+str(int(ntasks/n_nodes))+'\n'
     #prefix+='#SBATCH --gres=gpu:'+str(n_gpu)+'\n'
-    import datetime
+    
     timed=datetime.timedelta(seconds=time_deadline_sec)
     n_days = timed.days
     rest_seconds = timed.seconds + 300 # marginal seconds (5min)
@@ -58,8 +95,10 @@ def get_batch_script(gui_params, types="python"):
     prefix+='#SBATCH --time='+ rval +'\n' # e.g., 34:10:33
     prefix+='#SBATCH --exclusive\n'
     paths = 'HOME=/EDISON/SCIDATA/sdr/draft/'+uname+'\n'
-    jobdir= 'JOBDIR=/home/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)+'\n'
+    jobdir= 'JOBDIR=/home/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)+'\n' # path in singularity image (after mounting)
     paths += jobdir
+    #
+    types = "scripts" if 'env_name' in gui_params['hpo_system_attr'] else "python"
     #
     if types=="scripts":
         if 'env_name' in gui_params['hpo_system_attr']:
@@ -70,17 +109,18 @@ def get_batch_script(gui_params, types="python"):
         with open(jname+"_running_with_custom_env.sh", 'w') as f:
             sh_scripts = jobdir+env_script +"cd ${JOBDIR}\npython ${JOBDIR}/"+jname+"_generated"+".py\n"
             f.write(sh_scripts)
-    ## JOB init @ portal
+    ## JOB init @ portal // modified 0812
     job_init ="\n## JOB init @ portal\n"
-    job_init+="curl http://sdr.edison.re.kr:8080/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job \\ "
-    job_init+="-d userId="+str(gui_params['hpo_system_attr']['userId'])+" \\ "
-    job_init+="-d groupId="+str(gui_params['hpo_system_attr']['groupId'])+" \\ "
-    job_init+="-d companyId="+str(gui_params['hpo_system_attr']['companyId'])+" \\ "
-    job_init+="-d title="+str(gui_params['hpo_system_attr']['job_name'])+" \\ "
+    job_init+="curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job \\ "
+    #job_init+="-d userId="+str(gui_params['hpo_system_attr']['userId'])+" \\ "
+    #job_init+="-d groupId="+str(gui_params['hpo_system_attr']['groupId'])+" \\ "
+    #job_init+="-d companyId="+str(gui_params['hpo_system_attr']['companyId'])+" \\ "
+    job_init+="-d screenName="+uname+" \\ "
+    job_init+="-d title="+jname+" \\ "
     job_init+="-d jobType=82 \\ " # 82 = HPO job
     job_init+="-d workspaceName="+wsname+" \\ "
-    job_init+="-d status=TRAINING \\ "
-    job_init+="-d tmpPath=${JOBDIR}\n\n"#C:\Users\commu\VirtualBox_VMs\jupyterhub_data\jupyterhub\volumes\sdr\draft\test\workspace\35490809\job\1596443759867"
+    #job_init+="-d status=TRAINING \\ "
+    job_init+="-d tmpPath="+jobpath+"\n\n"
     ##### mpirun command
     mpirun_command = "## mpirun command\n"
     mpirun_command+= "/usr/local/bin/mpirun -np " + str(ntasks)
@@ -95,10 +135,10 @@ def get_batch_script(gui_params, types="python"):
     running_command = ("python ${JOBDIR}/"+jname+"_generated"+".py") if types == "python" else ("/bin/bash ${JOBDIR}/"+jname+"_running_with_custom_env.sh")
     ## JOB done @ portal
     job_done = "## JOB done @ portal\n"
-    job_done+= "curl http://sdr.edison.re.kr:8080/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
+    job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
     if 'deJobId' in gui_params['hpo_system_attr']:
         job_done+="-d deJobId="+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
-    job_done+="-d Status=DEPOLY\n"
+    job_done+="-d Status=SUCCESS\n"
     results = prefix+paths+job_init+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
     return results    
 #    
