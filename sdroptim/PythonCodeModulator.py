@@ -28,20 +28,21 @@ def get_jobpath_with_attr(gui_params=None):
     user_home2 = "/science-data/sdr/draft/"
     user_homes = [user_home1, user_home2]
     cwd=os.getcwd()
+    find_token = False
+    each = ""
+    for each in user_homes:
+        if cwd.startswith(each):
+            try:
+                uname = cwd.split(each)[1].split('/')[0]
+                find_token=True
+                break
+            except:
+                pass
+    if not find_token:
+        raise ValueError("cannot find user_id, please check the current user directory.")
+    # otherwise, use 'user_name' in the params
     if 'user_name' in gui_params['hpo_system_attr']:
         uname=gui_params['hpo_system_attr']['user_name'] 
-    else:
-        find_token = False
-        for each in user_homes:
-            if cwd.startswith(each):
-                try:
-                    uname = cwd.split(each)[1].split('/')[0]
-                    find_token=True
-                    break
-                except:
-                    pass
-        if not find_token:
-            raise ValueError("cannot find user_id, please check the current user directory.")
     #jname=gui_params['hpo_system_attr']['job_name'] #'job_name' is deprecated @ 0.0.2
     sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())
     jname=sname+"_in_"+uname
