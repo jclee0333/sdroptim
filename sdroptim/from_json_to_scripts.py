@@ -17,15 +17,15 @@ def FullscriptsGenerator(json_file_name):
     ## make python script (.py)
     #############################
     if type(gui_params['algorithm']) is list:
-        generated_code = PyMod.from_gui_to_code(gui_params)
         jobpath, (uname, sname, jname, wsname, job_id) = sdroptim.get_jobpath_with_attr(gui_params)
+        generated_code = PyMod.from_gui_to_code(gui_params)        
         with open(jobpath+os.sep+jname+'_generated.py', 'w') as f:
             f.write(prefix_generated_code+generated_code)
     #############################
         #############################
         ## make job script(sbatch)
         #############################
-        jobscripts = PyMod.get_batch_script(agui_params)
+        jobscripts = PyMod.get_batch_script(gui_params)
         with open(jobpath+os.sep+'job.sh', 'w') as f:
         	f.write(jobscripts)
         #############################

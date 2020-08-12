@@ -296,15 +296,15 @@ def get_argparse(automl=False, json_file_name=None):
     parser = argparse.ArgumentParser()
     # study setups
     parser.add_argument('--user_name', help="username", type=str, default = '')
-    parser.add_argument('--study_name', help="name of study", type=str, default = 'mpi_classfi')
+    parser.add_argument('--study_name', help="name of study", type=str, default = '')
     parser.add_argument('--db_ip', help="db ip address", type=str, default = '150.183.247.244')
     parser.add_argument('--db_port', help="db port", type=str, default = '5432')
     parser.add_argument('--db_id', help="db id", type=str, default = 'postgres')
     parser.add_argument('--db_pass', help="db pass", type=str, default = 'postgres')
     parser.add_argument('--direction', help="study direction", type=str, default = 'maximize')
     parser.add_argument('--max_trials', help="maximum trials", type=int, default = 100000)
-    parser.add_argument('--max_sec', help="maximul seconds(time)", type=int, default = 100)
-    parser.add_argument('--ss_json', help='searching space file location', default ="./searching_space_automl.json")
+    parser.add_argument('--max_sec', help="maximul seconds(time)", type=int, default = 300)
+    parser.add_argument('--ss_json', help='searching space file location', default ="searching_space_automl.json")
     # default params
     parser.add_argument("--seed", type=int, default=2020)
     #
@@ -313,9 +313,10 @@ def get_argparse(automl=False, json_file_name=None):
         if json_file_name:
             with open(json_file_name) as data_file:
                 gui_params = json.load(data_file)
-            filepath=gui_params['ml_file_path']
+            #filepath=gui_params['ml_file_path']
+            jobpath, (uname, sname, jname, wsname, job_id) = sdroptim.get_jobpath_with_attr(gui_params)
             filename=os.path.basename(args.ss_json)
-            location = filepath+filename
+            location = jobpath+os.sep+filename
         else:
             location=args.ss_json
         generate_default_searching_space_file(location)

@@ -19,6 +19,7 @@ n_jobs = 15 # cpu jobs
 ##############################################################################
 
 import json, uuid, os, datetime
+from sdroptim.searching_strategies import generate_default_searching_space_file
 
 def get_jobpath_with_attr(gui_params=None):
     if not gui_params:
@@ -672,10 +673,13 @@ def getObjectiveFunction_(resources, gui_params, indirect=False, stepwise=False,
         results += '    algorithm_name = secrets.choice(algorithm_names)\n'
 
     if 'hpo_system_attr' in gui_params:
-        if ('ss_json_path' in gui_params['hpo_system_attr']) and ('ss_json_name' in gui_params['hpo_system_attr']):
-            searching_space_json = gui_params['hpo_system_attr']['ss_json_path'] + gui_params['hpo_system_attr']['ss_json_name']
+        jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
+        if 'ss_json_name' in gui_params['hpo_system_attr']:
+            searching_space_json = jobpath+ os.sep+gui_params['hpo_system_attr']['ss_json_name']
         else: # using default
-            searching_space_json = './searching_space_automl.json'
+            searching_space_json = jobpath+os.sep+'searching_space_automl.json'
+            if not os.path.exists(searching_space_json):
+                generate_default_searching_space_file(searching_space_json)
     #
     with open(searching_space_json, 'r') as __:
         searching_space = json.load(__)
