@@ -23,6 +23,7 @@ setup(
                         'sqlalchemy',
                         'sqlalchemy-utils',
                         'psycopg2-binary',
+                        'easydict',
                         'numpy',
                         'pandas',],
     classifiers      = ['Programming Language :: Python :: 3.6',
