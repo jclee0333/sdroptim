@@ -307,8 +307,24 @@ def get_argparse(automl=False, json_file_name=None):
     parser.add_argument('--ss_json', help='searching space file location', default ="searching_space_automl.json")
     # default params
     parser.add_argument("--seed", type=int, default=2020)
-    #
-    args = parser.parse_args()
+    ## error handling when jupyter call
+    try:
+        args = parser.parse_args()
+    except:
+        import easydict
+        args = easydict.EasyDict({
+            "user_name":"",
+            "study_name":"",
+            "db_ip":'150.183.247.244',
+            "db_port":'5432',
+            "db_id":"postgres",
+            "db_pass":"postgres",
+            "direction":"maximize",
+            "max_trials":100000,
+            "max_sec":300,
+            "ss_json":"searching_space_automl.json",
+            "seed":2020
+        })
     if not os.path.exists(args.ss_json):
         if json_file_name:
             with open(json_file_name) as data_file:
