@@ -102,6 +102,40 @@ def savemodel(algorithm_name, model, file_prefix):
 ######################################
 ## get_argparse and check_stepwise_available are moved @ 20200810 by jclee
 ##
+def get_sample_seaching_space():
+    sample_dict = {
+        "boosting_type":{"choices":["gbdt", "goss"]},
+        "num_leaves":{"choices":[15,31,63,127,255]},
+        "max_depth":{"low":-1, "high":12},
+        "subsample_for_bin":{"choices":[20000, 50000, 100000, 200000]},
+        "class_weight":{"choices":[None,"balanced"]},
+        "min_child_weight":{"choices":[1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]},
+        "min_child_samples":{"low":1, "high":1000},
+        "subsample":{"low":0.2, "high":1.0},
+        "learning_rate":{"choices":[0.05]},
+        "colsample_bytree":{"low":0.2, "high":1.0}
+    }
+    return sample_dict
+
+def gen_custom_searching_space_file(task_name, algorithm_name, space, out_json_filename):
+	''' example)
+	gen_custom_searching_space_file('clf','lgb',get_sample_seaching_space(), 'custom_space')
+	
+	res) Successively generated default searching space! -> custom_space.json
+
+	'''
+    results = '{\n\t"'+str(task_name)+'":{\n\t\t"'+str(algorithm_name)+'":\n'
+    results+= '\t\t\t'+str(space).replace("'",'"').replace("None", "null") + "\n"
+    results+= '\n\t}\n}\n'
+    try:
+        with open(out_json_filename+".json", 'w') as f:
+            f.write(results)
+        print("Successively generated default searching space! -> "+str(out_json_filename)+".json")
+        token=True
+    except:
+        print("Cannot generate searching space!")
+        token=False
+    return token
 
 def generate_default_searching_space_file(out_file_pathname):
     default_strings='''{
@@ -284,7 +318,7 @@ def generate_default_searching_space_file(out_file_pathname):
     try:
         with open(out_file_pathname, 'w') as f:
             f.write(default_strings)
-        print("Successively generated default searching space!")
+        print("Successively generated default searching space! -> searching_space_automl.json")
         token=True
     except:
         print("Cannot generate default searching space!")
