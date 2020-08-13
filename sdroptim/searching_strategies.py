@@ -346,6 +346,7 @@ def get_argparse(automl=False, json_file_name=None):
         args = easydict.EasyDict({
             #"user_name":"",
             "ss_json":"searching_space_automl.json",
+            "nb_name":"",
             "study_name":"",
             "job_id":"",
             "metadata_json":"",
