@@ -32,7 +32,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
             gui_params = json.load(data_file)
         jobpath = gui_params['hpo_system_attr']['job_id']
     #######
-    save_this_nb_to_py(dest_dir=jobpath):
+    save_this_nb_to_py(dest_dir=jobpath)
     # 1. generates gui_params and its metadata.json
     if args.metadata_json == "":
         if args.task_name == "":
