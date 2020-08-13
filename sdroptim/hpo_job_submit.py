@@ -32,7 +32,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
             gui_params = json.load(data_file)
         jobpath = gui_params['hpo_system_attr']['job_id']
     #######
-    save_this_nb_to_py(dest_dir=jobpath, args) # should run in jupyter only
+    save_this_nb_to_py(args=args, dest_dir=jobpath) # should run in jupyter only
     # 1. generates gui_params and its metadata.json
     if args.metadata_json == "":
         if args.task_name == "":
@@ -101,7 +101,7 @@ def current_notebook_name():
     notebook_name = ipyparams.notebook_name
     return notebook_name
  
-def save_this_nb_to_py(dest_dir="./", args):
+def save_this_nb_to_py(args, dest_dir="./"):
     import subprocess
     if args.nb_name=="":
         name= current_notebook_name()
