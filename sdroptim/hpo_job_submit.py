@@ -110,22 +110,9 @@ def save_this_nb_to_py(dest_dir="./"):
     name= current_notebook_name()
     filepath = os.getcwd()+os.sep+name
     import subprocess
-    import 
     try:
         #!jupyter nbconvert --to script {filepath} --output-dir={dest_dir}
         subprocess.check_output("jupyter nbconvert --to script "+filepath+" --output-dir="+dest_dir, shell=True)
-        return True
-    except:
-        raise ValueError(".py cannot be generated via current notebook.")
-    return False
-
-
-def save_this_nb_to_py(dest_dir="./"):
-    name= current_notebook_name()
-    filepath = os.getcwd()+os.sep+name
-    import 
-    try:
-        !jupyter nbconvert --to script {filepath} --output-dir={dest_dir}
         return True
     except:
         raise ValueError(".py cannot be generated via current notebook.")
