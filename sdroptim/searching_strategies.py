@@ -118,12 +118,10 @@ def get_sample_seaching_space():
     return sample_dict
 
 def gen_custom_searching_space_file(task_name, algorithm_name, space, out_json_filename):
-	''' example)
-	gen_custom_searching_space_file('clf','lgb',get_sample_seaching_space(), 'custom_space')
-	
-	res) Successively generated default searching space! -> custom_space.json
-
-	'''
+    ''' example)
+    gen_custom_searching_space_file('clf','lgb',get_sample_seaching_space(), 'custom_space')
+    res) Successively generated default searching space! -> custom_space.json
+    '''
     results = '{\n\t"'+str(task_name)+'":{\n\t\t"'+str(algorithm_name)+'":\n'
     results+= '\t\t\t'+str(space).replace("'",'"').replace("None", "null") + "\n"
     results+= '\n\t}\n}\n'
