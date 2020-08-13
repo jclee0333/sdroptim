@@ -348,6 +348,7 @@ def get_argparse(automl=False, json_file_name=None):
             "ss_json":"searching_space_automl.json",
             "study_name":"",
             "job_id":"",
+            "metadata_json":"",
             "task_type":"gpu",
             "n_nodes":1,
             "max_sec":300,
@@ -361,6 +362,8 @@ def get_argparse(automl=False, json_file_name=None):
             #"max_trials":100000
         })
         in_jupyter=True
+        if json_file_name:
+            automl=True
     if not os.path.exists(args.ss_json):
         if not in_jupyter:
             if json_file_name:
