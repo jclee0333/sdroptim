@@ -135,7 +135,7 @@ def gen_custom_searching_space_file(task_name, algorithm_name, space, out_json_f
         token=False
     return token
 
-def generate_default_searching_space_file(out_file_pathname):
+def generate_default_searching_space_file(out_file_pathname=None):
     default_strings='''{
     "Regression":{
         "MLR":
@@ -317,11 +317,9 @@ def generate_default_searching_space_file(out_file_pathname):
         with open(out_file_pathname, 'w') as f:
             f.write(default_strings)
         print("Successively generated default searching space! -> searching_space_automl.json")
-        token=True
     except:
         print("Cannot generate default searching space!")
-        token=False
-    return token
+    return default_strings
         
 def get_argparse(automl=False, json_file_name=None):
     import argparse, json
@@ -340,34 +338,41 @@ def get_argparse(automl=False, json_file_name=None):
     # default params
     parser.add_argument("--seed", type=int, default=2020)
     ## error handling when jupyter call
+    in_jupyter=False
     try:
         args = parser.parse_args()
     except:
         import easydict
         args = easydict.EasyDict({
-            "user_name":"",
-            "study_name":"",
-            "db_ip":'150.183.247.244',
-            "db_port":'5432',
-            "db_id":"postgres",
-            "db_pass":"postgres",
-            "direction":"maximize",
-            "max_trials":100000,
-            "max_sec":300,
+            #"user_name":"",
             "ss_json":"searching_space_automl.json",
-            "seed":2020
+            "study_name":"",
+            "job_id":"",
+            "task_type":"gpu",
+            "n_nodes":1,
+            "max_sec":300,
+            "seed":2020,
+            "direction":"maximize",
+            "stepwise":False
+            #"db_ip":'150.183.247.244',
+            #"db_port":'5432',
+            #"db_id":"postgres",
+            #"db_pass":"postgres",
+            #"max_trials":100000
         })
+        in_jupyter=True
     if not os.path.exists(args.ss_json):
-        if json_file_name:
-            with open(json_file_name) as data_file:
-                gui_params = json.load(data_file)
-            #filepath=gui_params['ml_file_path']
-            jobpath, (uname, sname, jname, wsname, job_id) = sdroptim.get_jobpath_with_attr(gui_params)
-            filename=os.path.basename(args.ss_json)
-            location = jobpath+os.sep+filename
-        else:
-            location=args.ss_json
-        generate_default_searching_space_file(location)
+        if not in_jupyter:
+            if json_file_name:
+                with open(json_file_name) as data_file:
+                    gui_params = json.load(data_file)
+                #filepath=gui_params['ml_file_path']
+                jobpath, (uname, sname, jname, wsname, job_id) = sdroptim.get_jobpath_with_attr(gui_params)
+                filename=os.path.basename(args.ss_json)
+                location = jobpath+os.sep+filename
+            else:
+                location=args.ss_json
+            generate_default_searching_space_file(location)
     if automl: # study_name, time_deadline_sec, ss_json_path, ss_json_name should be controlled by gui_params json.
         with open(json_file_name) as data_file:
             gui_params = json.load(data_file)

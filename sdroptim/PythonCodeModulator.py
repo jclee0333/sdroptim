@@ -57,6 +57,8 @@ def get_jobpath_with_attr(gui_params=None):
     else:
         timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         job_id="job-"+timenow
+    if not os.path.exists(each+uname+'/workspace/'+str(wsname)+'/job/'):
+        os.mkdir(each+uname+'/workspace/'+str(wsname)+'/job/')
     jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)
     if not os.path.exists(jobpath):
         os.mkdir(jobpath)
