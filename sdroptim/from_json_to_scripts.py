@@ -27,7 +27,7 @@ def FullscriptsGenerator(json_file_name):
         #############################
         jobscripts = PyMod.get_batch_script(gui_params)
         with open(jobpath+os.sep+'job.sh', 'w') as f:
-        	f.write(jobscripts)
+            f.write(jobscripts)
         #############################
     else: # if not hpo
         if gui_params['kernel'] == 'R':

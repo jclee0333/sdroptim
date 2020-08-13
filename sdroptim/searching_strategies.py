@@ -349,18 +349,25 @@ def get_argparse(automl=False, json_file_name=None):
             "study_name":"",
             "job_id":"",
             "metadata_json":"",
+            "task_name":"",
+            "algorithm_name":"",
+            "env_name":"",
             "task_type":"gpu",
             "n_nodes":1,
             "max_sec":300,
             "seed":2020,
             "direction":"maximize",
-            "stepwise":False
+            "greedy":False,
+            "stepwise":False,
+            "top_n_all":10,
+            "top_n_each_algo":3
             #"db_ip":'150.183.247.244',
             #"db_port":'5432',
             #"db_id":"postgres",
             #"db_pass":"postgres",
             #"max_trials":100000
         })
+        print("*Note that algorithm_name can be multiple. If multiple, write down the algorithms using comma. e.g., args.algorithm_name = 'lgb, xgboost, pytorch'")
         in_jupyter=True
         if json_file_name:
             automl=True
