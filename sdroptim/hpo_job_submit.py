@@ -36,9 +36,9 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     # 1. generates gui_params and its metadata.json
     if args.metadata_json == "":
         if args.task_name == "":
-        	args.task_name = "unknown_task"
+            args.task_name = "unknown_task"
         if args.algorithm_name == "":
-        	args.algorithm_name = "unknown_algorithm"
+            args.algorithm_name = "unknown_algorithm"
         generates_metadata_json(args=args, dest_dir=jobpath)
 
     #
@@ -64,7 +64,7 @@ def generates_metadata_json(args, dest_dir):
     if args.env_name:
         env_name = '"env_name":"'+args.env_name+'", '
     else:
-    	env_name = ""
+        env_name = ""
     results+= '"job_name":"'+args.jname+'", '+env_name+'"workspace_name":"'+args.wsname+'", "job_id":"'+job_id+'", '
     results+= '"time_deadline_sec": '+str(args.max_sec)+', "n_nodes":'+str(args.n_nodes)+', '
     results+= '"greedy":'+('0' if not args.greedy else '1')+', "stepwise":'+('0' if not args.stepwise else '1') + ', '
@@ -80,11 +80,6 @@ def generates_metadata_json(args, dest_dir):
         print("Cannot generate metadata jsonfile!")
         token=False
     return token
-
-
-
-
-
 
 ############################################################################
 #######
@@ -107,9 +102,9 @@ def current_notebook_name():
     return notebook_name
  
 def save_this_nb_to_py(dest_dir="./"):
+    import subprocess
     name= current_notebook_name()
     filepath = os.getcwd()+os.sep+name
-    import subprocess
     try:
         #!jupyter nbconvert --to script {filepath} --output-dir={dest_dir}
         subprocess.check_output("jupyter nbconvert --to script "+filepath+" --output-dir="+dest_dir, shell=True)
