@@ -194,8 +194,7 @@ def get_batch_script(gui_params):
     job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
     #if 'deJobId' in gui_params['hpo_system_attr']:
     #    job_done+="-d deJobId="+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
-    job_done+="-d deJobId=${deJobID}"+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
-    job_done+="-d Status=SUCCESS\n"
+    job_done+="-d deJobId=${deJobID} -d Status=SUCCESS\n"
     results = prefix+paths+job_init+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
     return results    
 #    
