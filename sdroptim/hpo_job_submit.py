@@ -18,6 +18,9 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
         n_obj = len(objective_or_setofobjectives)
     if n_obj > 2:
         raise ValueError("The number of objectives cannot be exceed by two.")
+    objective_name_list = []
+    for each_obj in objective_or_setofobjectives:
+    	objective_name_list.append(each_obj.__name__)
     ##################################################
     if args.job_id == "": ## generate job_id(directory)
         jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr()
@@ -48,7 +51,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     with open(jobpath+os.sep+"metadata.json") as data_file:
         gui_params = json.load(data_file)
     ##
-    generated_code = from_userpy_to_mpipy(args=args, userpy=gen_py_pathname)
+    generated_code = from_userpy_to_mpipy(objective_name_list=objective_name_list, args=args, userpy=gen_py_pathname)
     with open(jobpath+os.sep+args.jname+'_generated.py', 'w') as f:
         f.write(generated_code)
     # 생성된 py에서 함수만 호출(class, def) -> 이전 함수 활용
@@ -59,8 +62,8 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
         f.write(jobscripts)
     ##
     ## 이후과정은 sbatch job.sh 실행하는 내용
-    results=run_job_script(user_name=gui_params['hpo_system_attr']['user_name'], dest_dir=jobpath)
-    print(results)
+    #results=run_job_script(user_name=gui_params['hpo_system_attr']['user_name'], dest_dir=jobpath)
+    #print(results)
 
 def run_job_script(user_name, dest_dir):
     import requests, shlex, subprocess
