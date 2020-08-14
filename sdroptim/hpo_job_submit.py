@@ -63,7 +63,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     print(results)
 
 def run_job_script(user_name, dest_dir):
-	import requests, shlex, subprocess
+    import requests, shlex, subprocess
     curl_script = 'curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-run \\ '	
     curl_script+= '-d location='+dest_dir+' \\ '
     curl_script+= '-d screenName='+user_name
