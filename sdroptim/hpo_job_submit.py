@@ -3,7 +3,7 @@
   (for Jupyter User)
   -- jclee@kisti.re.kr
 """
-from sdroptim.PythonCodeModulator import get_jobpath_with_attr, get_batch_script
+from sdroptim.PythonCodeModulator import get_jobpath_with_attr, get_batch_script, from_userpy_to_mpipy
 
 def SubmitHPOjob(objective_or_setofobjectives, args):
     ''' 1. file copying( symbolic link )
@@ -32,24 +32,32 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
             gui_params = json.load(data_file)
         jobpath = gui_params['hpo_system_attr']['job_id']
     #######
-    save_this_nb_to_py(args=args, dest_dir=jobpath) # should run in jupyter only
+    gen_py_pathname=save_this_nb_to_py(args=args, dest_dir=jobpath) # should run in jupyter only
     # 1. generates gui_params and its metadata.json
-    if args.metadata_json == "":
+    if args.metadata_json == "": ## first try
         if args.task_name == "":
             args.task_name = "unknown_task"
         if args.algorithm_name == "":
             args.algorithm_name = "unknown_algorithm"
         generates_metadata_json(args=args, dest_dir=jobpath)
-
-    #
-    generated_code = PyMod.from_gui_to_code(gui_params)        
-    with open(jobpath+os.sep+jname+'_generated.py', 'w') as f:
-        f.write(prefix_generated_code+generated_code)
-    #
+    else: ## update metadata.json with the new args
+        #update_metadata_json(args=args, dest_dir=jobpath)
+        generates_metadata_json(args=args, dest_dir=jobpath) # 항상 최신의 args로 update하면 될듯?
+    ## 2. load gui_params
+    with open(jobpath+os.sep+"metadata.json") as data_file:
+        gui_params = json.load(data_file)
+    ##
+    generated_code = from_userpy_to_mpipy(args=args, user_py=gen_py_pathname)
+    with open(jobpath+os.sep+args.jname+'_generated.py', 'w') as f:
+        f.write(generated_code)
+    # 생성된 py에서 함수만 호출(class, def) -> 이전 함수 활용
+    # 그리고 실행 함수 제작(mpirun 용)
+    # 그리고나서 만들어진 metadata이용하여 batch script 생성
     jobscripts= get_batch_script(gui_params, new_job=False)
     with open(jobpath+os.sep+'job.sh', 'w') as f:
         f.write(jobscripts)
     ##
+    ## 이후과정은 sbatch job.sh 실행하는 내용
 
 def generates_metadata_json(args, dest_dir):
     if len(args.algorithm_name.split(','))==1:
@@ -81,6 +89,12 @@ def generates_metadata_json(args, dest_dir):
         token=False
     return token
 
+#def update_metadata_json(args, dest_dir):
+#    # load previous metadata_json and update it
+#    with open(dest_dir+os.sep+"metadata.json") as data_file:
+#        gui_params = json.load(data_file)
+    
+
 ############################################################################
 #######
 # file exists error need to be handled
@@ -106,12 +120,14 @@ def save_this_nb_to_py(args, dest_dir="./"):
     if args.nb_name=="":
         name= current_notebook_name()
         filepath = os.getcwd()+os.sep+name
+        ipynbfilename=name
     else:
         filepath = os.getcwd()+os.sep+args.nb_name
+        ipynbfilename=args.nb_name
     try:
         #!jupyter nbconvert --to script {filepath} --output-dir={dest_dir}
         subprocess.check_output("jupyter nbconvert --to script "+filepath+" --output-dir="+dest_dir, shell=True)
-        return True
+        return dest_dir+os.sep+ipynbfilename+'.py'
     except:
         raise ValueError(".py cannot be generated via current notebook.")
     return False

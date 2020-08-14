@@ -21,6 +21,40 @@ n_jobs = 15 # cpu jobs
 import json, uuid, os, datetime
 from sdroptim.searching_strategies import generate_default_searching_space_file
 
+def from_userpy_to_mpipy(args, userpy):
+    import ast, astunparse
+    with open(userpy) as f:
+        p = ast.parse(f.read())
+    for node in p.body[:]:
+        if type(node) not in [ast.FunctionDef, ast.Import, ast.ImportFrom, ast.ClassDef]:
+            p.body.remove(node)
+    objective_name_list = []
+    for node in p.body[:]:
+        if 'objective' in node.name.lower():
+            objective_name_list.append(node.name)
+    if len(objective_name_list)>2:
+        raise ValueError("Objective Functions cannot exceed by two.")
+    pre = astunparse.unparse(p)
+    pre+="\n\n"
+    body ='if __name__ == "__main__":\n'
+    body+='    import optuna\n'
+    body+='    import sdroptim\n'
+    body+='    stepwise, task_and_algorithm = sdroptim.check_stepwise_available("metadata.json")\n'
+    body+='    args = sdroptim.get_argparse(automl=True, json_file_name="metadata.json")\n'
+    #
+    if args.task_type == 'both':
+        post ='    if stepwise:\n'
+        post+='        sdroptim.stepwise_mpi_time_dobj('+objective_name_list[0]+', '+objective_name_list[1]+', args, task_and_algorithm)\n'
+        post+='    else:\n'
+        post+='        sdroptim.optuna_mpi_dobj('+objective_name_list[0]+', '+objective_name_list[1]+', args)\n'
+    else:
+        post ='    if stepwise:\n'
+        post+='        sdroptim.stepwise_mpi_time('+objective_name_list[0]+', args, task_and_algorithm)\n'
+        post+='    else:\n'
+        post+='        sdroptim.optuna_mpi('+objective_name_list[0]+', args)\n'
+    return pre+body+post
+
+
 def get_jobpath_with_attr(gui_params=None):
     if not gui_params:
         gui_params = {'hpo_system_attr':{}} # set default 
@@ -139,10 +173,10 @@ def get_batch_script(gui_params, new_job=True):
     #job_init+="-d companyId="+str(gui_params['hpo_system_attr']['companyId'])+" \\ "
     job_init+="-d screenName="+uname+" \\ "
     job_init+="-d title="+jname+" \\ "
-    job_init+="-d jobType=82 \\ " # 82 = HPO job
+    job_init+="-d targetType=82 \\ " # 82 = HPO job
     job_init+="-d workspaceName="+wsname+" \\ "
     #job_init+="-d status=TRAINING \\ "
-    job_init+="-d tmpPath="+jobpath+")\n\n"
+    job_init+="-d location="+jobpath+")\n\n"
     ##### mpirun command
     mpirun_command = "## mpirun command\n"
     mpirun_command+= "/usr/local/bin/mpirun -np " + str(ntasks)
