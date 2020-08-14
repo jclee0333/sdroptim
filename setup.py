@@ -8,7 +8,7 @@ with open('README.md', 'r', 'utf-8') as f:
 
 setup(
     name             = 'sdroptim',
-    version          = '0.0.5',
+    version          = '0.0.6',
     packages         = find_packages(),
     description      = 'Hyperparameter Optimization for KISTI Science Data Repository',
     long_description = readme,
@@ -24,6 +24,7 @@ setup(
                         'sqlalchemy-utils',
                         'psycopg2-binary',
                         'easydict',
+                        'astunparse',
                         'numpy',
                         'pandas',],
     classifiers      = ['Programming Language :: Python :: 3.6',
