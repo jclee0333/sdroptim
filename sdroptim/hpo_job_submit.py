@@ -48,7 +48,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     with open(jobpath+os.sep+"metadata.json") as data_file:
         gui_params = json.load(data_file)
     ##
-    generated_code = from_userpy_to_mpipy(args=args, user_py=gen_py_pathname)
+    generated_code = from_userpy_to_mpipy(args=args, userpy=gen_py_pathname)
     with open(jobpath+os.sep+args.jname+'_generated.py', 'w') as f:
         f.write(generated_code)
     # 생성된 py에서 함수만 호출(class, def) -> 이전 함수 활용
