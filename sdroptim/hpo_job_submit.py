@@ -4,6 +4,7 @@
   -- jclee@kisti.re.kr
 """
 from sdroptim.PythonCodeModulator import get_jobpath_with_attr, get_batch_script, from_userpy_to_mpipy
+import json
 
 def SubmitHPOjob(objective_or_setofobjectives, args):
     ''' 1. file copying( symbolic link )
