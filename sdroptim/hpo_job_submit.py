@@ -59,6 +59,19 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
         f.write(jobscripts)
     ##
     ## 이후과정은 sbatch job.sh 실행하는 내용
+    results=run_job_script(user_name=gui_params['hpo_system_attr']['user_name'], dest_dir=jobpath)
+    print(results)
+
+def run_job_script(user_name, dest_dir):
+	import requests, shlex, subprocess
+    curl_script = 'curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-run \\ '	
+    curl_script+= '-d location='+dest_dir+' \\ '
+    curl_script+= '-d screenName='+user_name
+    args = shlex.split(curl_script)
+    process=subprocess.Popen(args,shell=False,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr=process.communicate()
+    return stdout
+
 
 def generates_metadata_json(args, dest_dir):
     if len(args.algorithm_name.split(','))==1:
