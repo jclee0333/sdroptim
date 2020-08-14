@@ -128,7 +128,7 @@ def save_this_nb_to_py(args, dest_dir="./"):
     try:
         #!jupyter nbconvert --to script {filepath} --output-dir={dest_dir}
         subprocess.check_output("jupyter nbconvert --to script "+filepath+" --output-dir="+dest_dir, shell=True)
-        return dest_dir+os.sep+ipynbfilename+'.py'
+        return dest_dir+os.sep+ipynbfilename.split(".ipynb")[0]+'.py'
     except:
         raise ValueError(".py cannot be generated via current notebook.")
     return False
