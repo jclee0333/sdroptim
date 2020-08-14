@@ -54,7 +54,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     # 생성된 py에서 함수만 호출(class, def) -> 이전 함수 활용
     # 그리고 실행 함수 제작(mpirun 용)
     # 그리고나서 만들어진 metadata이용하여 batch script 생성
-    jobscripts= get_batch_script(gui_params, new_job=False)
+    jobscripts= get_batch_script(gui_params)
     with open(jobpath+os.sep+'job.sh', 'w') as f:
         f.write(jobscripts)
     ##

@@ -99,9 +99,8 @@ def get_jobpath_with_attr(gui_params=None):
         os.mkdir(jobpath)
     return jobpath, (uname, sname, jname, wsname, job_id)
 
-def get_batch_script(gui_params, new_job=True):
-    if new_job:
-        jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
+def get_batch_script(gui_params):
+    jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
     ###########################
     #
     time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
