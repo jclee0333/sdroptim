@@ -8,7 +8,7 @@ with open('README.md', 'r', 'utf-8') as f:
 
 setup(
     name             = 'sdroptim',
-    version          = '0.0.4',
+    version          = '0.0.5',
     packages         = find_packages(),
     description      = 'Hyperparameter Optimization for KISTI Science Data Repository',
     long_description = readme,
