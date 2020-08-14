@@ -30,8 +30,9 @@ def from_userpy_to_mpipy(args, userpy):
             p.body.remove(node)
     objective_name_list = []
     for node in p.body[:]:
-        if 'objective' in node.name.lower():
-            objective_name_list.append(node.name)
+        if type(node) in [ast.FunctionDef, ast.ClassDef]:
+            if 'objective' in node.name.lower():
+                objective_name_list.append(node.name)
     if len(objective_name_list)>2:
         raise ValueError("Objective Functions cannot exceed by two.")
     pre = astunparse.unparse(p)
