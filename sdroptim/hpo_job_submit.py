@@ -236,6 +236,11 @@ class Job(object):
             self.job_name = jname
             gui_params['hpo_system_attr'].update({"job_name":self.job_name})
             #
+            print("Job path: ", self.job_path)
+            print("Workspace name: ", self.workspace_name)
+            print("Job id: ", self.job_id)
+            print("Study name: ", self.study_name)
+            #
             self.gui_params=gui_params
             jsonfile = json.dumps(gui_params)
             with open(jobpath+os.sep+'metadata.json', 'w') as f:
@@ -248,6 +253,12 @@ class Job(object):
             self.job_name = gui_params['hpo_system_attr']['job_name']
             self.workspace_name = gui_params['hpo_system_attr']['workspace_name']
             self.job_id = gui_params['hpo_system_attr']['job_id']
+            #
+            print("Job path: ", self.job_path)
+            print("Workspace name: ", self.workspace_name)
+            print("Job id: ", self.job_id)
+            print("Study name: ", self.study_name)
+            print("\n")
             #
             self.n_nodes = int(gui_params['hpo_system_attr']['n_nodes'])
             self.max_sec = int(gui_params['hpo_system_attr']['time_deadline_sec'])
@@ -264,7 +275,8 @@ class Job(object):
         direction='maximize',
         #greedy=True,
         stepwise=False,
-        searching_space="searching_space"
+        searching_space="searching_space",
+        task_type="gpu"
         ):
         #
         self.n_nodes = n_nodes
@@ -277,6 +289,8 @@ class Job(object):
         print("Study direction: "+self.direction)
         self.stepwise = stepwise
         self.searching_space = searching_space
+        self.task_type = task_type
+        print("Task type: "+self.task_type)
         # update gui_params
         self.gui_params['hpo_system_attr'].update({'n_nodes':int(self.n_nodes)})
         print(str(self.n_nodes)+" nodes are preparing for this job ...")
@@ -286,6 +300,7 @@ class Job(object):
         #self.gui_params['hpo_system_attr'].update({'greedy':1 if self.greedy == True else 0})
         self.gui_params['hpo_system_attr'].update({'stepwise':1 if self.stepwise == True else 0})
         self.gui_params['hpo_system_attr'].update({'searching_space':searching_space+".json"})
+        self.gui_params['hpo_system_attr'].update({"task_type":self.task_type})
         #
         params = get_params(objective)
         params_to_update = {self.gui_params['task']:{self.gui_params['algorithm'][0]:params}}
@@ -308,7 +323,7 @@ class Job(object):
             print("Symlinks are generated in "+str(self.job_path))
         gen_py_pathname = save_this_nb_to_py(dest_dir=self.job_path)
         if gen_py_pathname:
-            print("This notebook ("+str(gen_py_pathname)+") has been copied as a python file(.py) ,successively.")
+            print("This notebook has been copied as a python file(.py) successively.")
         generated_code = generate_mpipy(objective_name=objective.__name__, userpy=gen_py_pathname, postfunc=mod_func_stepwise)
         with open(self.job_path+os.sep+self.job_name+'_generated.py', 'w') as f:
             f.write(generated_code)
@@ -328,6 +343,7 @@ class Job(object):
         #
         ## 이후과정은 sbatch job.sh 실행하는 내용
         #results=run_job_script(user_name = self.gui_params['hpo_system_attr']['user_name'], dest_dir=self.jobpath)
+        ## 8/20 계획 : getStudy 개체를 붙여서 dataframe을 jupyter에서 불러오고 이를 분석할 수 있어야함
         #print(results)
 
 #####################################
@@ -474,7 +490,7 @@ def copy_all_files_to_jobpath(cur_dir, dest_dir, by='symlink'):
                 raise ValueError("Symlinks cannot be generated.")
     elif by == 'copy':
         try:
-            copytree(cur_dir, dest_dir)
+            #copytree(cur_dir, dest_dir)
             return True
         except:
             raise ValueError("Files cannot be copied.")

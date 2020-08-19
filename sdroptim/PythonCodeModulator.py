@@ -109,25 +109,43 @@ def get_batch_script(gui_params):
     #
     time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
     #
+    #if 'algorithm' in gui_params:
+    #    cpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'cpu')
+    #    gpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'gpu')
+    #else:
+    #    if 'n_nodes' in gui_params['hpo_system_attr']:
+    #        if 'task_type' in gui_params['hpo_system_attr']:
+    #            if gui_params['hpo_system_attr']['task_type']=='cpu':
+    #                cpuhas=1
+    #                gpuhas=0
+    #            elif gui_params['hpo_system_attr']['task_type']=='gpu':
+    #                cpuhas=0
+    #                gpuhas=1
+    #            elif gui_params['hpo_system_attr']['task_type']=='both':
+    #                cpuhas=1
+    #                gpuhas=1
+    #            else:
+    #                raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
+    #    else:
+    #        raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
     if 'algorithm' in gui_params:
         cpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'cpu')
         gpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'gpu')
+    if 'n_nodes' in gui_params['hpo_system_attr']:
+        if 'task_type' in gui_params['hpo_system_attr']:
+            if gui_params['hpo_system_attr']['task_type']=='cpu':
+                cpuhas=['cpu']
+                gpuhas=[]
+            elif gui_params['hpo_system_attr']['task_type']=='gpu':
+                cpuhas=[]
+                gpuhas=['gpu']
+            elif gui_params['hpo_system_attr']['task_type']=='both':
+                cpuhas=['cpu']
+                gpuhas=['gpu']
+            else:
+                raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
     else:
-        if 'n_nodes' in gui_params['hpo_system_attr']:
-            if 'task_type' in gui_params['hpo_system_attr']:
-                if gui_params['hpo_system_attr']['task_type']=='cpu':
-                    cpuhas=1
-                    gpuhas=0
-                elif gui_params['hpo_system_attr']['task_type']=='gpu':
-                    cpuhas=0
-                    gpuhas=1
-                elif gui_params['hpo_system_attr']['task_type']=='both':
-                    cpuhas=1
-                    gpuhas=1
-                else:
-                    raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
-        else:
-            raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
+        raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
     cpu_task = 1
     gpu_task = 1
     if len(cpuhas)>0:
