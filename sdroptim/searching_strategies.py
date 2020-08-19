@@ -395,9 +395,10 @@ def get_argparse(automl=False, json_file_name=None):
                 args.study_name = gui_params['hpo_system_attr']['study_name']
             if 'time_deadline_sec' in gui_params['hpo_system_attr']:
                 args.max_sec = gui_params['hpo_system_attr']['time_deadline_sec']
-            if ('ss_json_path' in gui_params['hpo_system_attr']) and ('ss_json_name' in gui_params['hpo_system_attr']):
-                searching_space_json = gui_params['hpo_system_attr']['ss_json_path'] + gui_params['hpo_system_attr']['ss_json_name']
-                args.ss_json = searching_space_json
+            #if ('ss_json_path' in gui_params['hpo_system_attr']) and ('ss_json_name' in gui_params['hpo_system_attr']):
+            #    searching_space_json = gui_params['hpo_system_attr']['ss_json_path'] + gui_params['hpo_system_attr']['ss_json_name']
+            if 'searching_space' in gui_params['hpo_system_attr']:
+                args.ss_json = gui_params['hpo_system_attr']['searching_space'] 
             if 'direction' in gui_params['hpo_system_attr']:
                 args.direction=gui_params['hpo_system_attr']['direction']
                 #print(args)

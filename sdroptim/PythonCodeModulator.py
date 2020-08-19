@@ -21,7 +21,7 @@ n_jobs = 15 # cpu jobs
 import json, uuid, os, datetime
 from sdroptim.searching_strategies import generate_default_searching_space_file
 
-def from_userpy_to_mpipy(objective_name_list, args, userpy):
+def from_userpy_to_mpipy(objective_name_list, userpy):
     import ast, astunparse
     with open(userpy) as f:
         p = ast.parse(f.read())
@@ -55,13 +55,13 @@ def from_userpy_to_mpipy(objective_name_list, args, userpy):
         post+='        sdroptim.optuna_mpi('+objective_name_list[0]+', args)\n'
     return pre+body+post
 
-
 def get_jobpath_with_attr(gui_params=None):
     if not gui_params:
         gui_params = {'hpo_system_attr':{}} # set default 
     user_home1 = "/EDISON/SCIDATA/sdr/draft/"
     user_home2 = "/science-data/sdr/draft/"
-    user_homes = [user_home1, user_home2]
+    user_home3_for_test = "C:\\Users\\user\\Documents\\GitHub\\"
+    user_homes = [user_home1, user_home2, user_home3_for_test]
     cwd=os.getcwd()
     find_token = False
     each = ""
@@ -85,7 +85,11 @@ def get_jobpath_with_attr(gui_params=None):
     if 'workspace_name' in gui_params['hpo_system_attr']:
         wsname=gui_params['hpo_system_attr']['workspace_name'] # directory name (MANDATORY)    
     else:
-        wsname=cwd.split('/workspace/')[1].split('/')[0]
+        if cwd.startswith(user_home3_for_test):
+            wsname="test"
+        else:
+            wsname=cwd.split('/workspace/')[1].split('/')[0]
+        
     ###########################
     if 'job_id' in gui_params['hpo_system_attr']:
         job_id=gui_params['hpo_system_attr']['job_id'] # directory name
