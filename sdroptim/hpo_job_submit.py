@@ -302,7 +302,8 @@ class Job(object):
                 mod_func_stepwise=override_objfunc_with_newparams(objective)
                 if mod_func_stepwise:
                     print("The objective function has been overrided for using the stepwise strategy.")
-        copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
+        #copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
+        copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='copy')
         if copied:
             print("Symlinks are generated in "+str(self.job_path))
         gen_py_pathname = save_this_nb_to_py(dest_dir=self.job_path)
