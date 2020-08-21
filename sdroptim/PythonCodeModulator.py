@@ -89,22 +89,23 @@ def get_jobpath_with_attr(gui_params=None, debug=False):
     cwd=os.getcwd()
     uname, each = get_user_id(debug=debug) # each == user home( under workspace )
     #########################################################################
-    if debug:
-        if not os.path.exists(cwd+os.sep+"workspace/"):
-            os.mkdir(cwd+os.sep+"workspace/")
-        if not os.path.exists(cwd+os.sep+"workspace/default_ws/"):
-            os.mkdir(cwd+os.sep+"workspace/default_ws/")
-        if not os.path.exists(cwd+os.sep+"workspace/default_ws/job/"):
-            os.mkdir(cwd+os.sep+"workspace/default_ws/job/")
-        timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        jobpath = cwd+os.sep+"workspace/default_ws/job/job-"+timenow
-        if not os.path.exists(jobpath):
-            os.mkdir(jobpath)
-        sname = str(uuid.uuid4())
-        job_title = sname+"_in_"+uname
-        wsname = "default_ws"
-        job_directory = "job-"+timenow
-        return jobpath, (uname, sname, job_title, wsname, job_directory)
+    if gui_params is None:
+        if debug:
+            if not os.path.exists(cwd+os.sep+"workspace/"):
+                os.mkdir(cwd+os.sep+"workspace/")
+            if not os.path.exists(cwd+os.sep+"workspace/default_ws/"):
+                os.mkdir(cwd+os.sep+"workspace/default_ws/")
+            if not os.path.exists(cwd+os.sep+"workspace/default_ws/job/"):
+                os.mkdir(cwd+os.sep+"workspace/default_ws/job/")
+            timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+            jobpath = cwd+os.sep+"workspace/default_ws/job/job-"+timenow
+            if not os.path.exists(jobpath):
+                os.mkdir(jobpath)
+            sname = str(uuid.uuid4())
+            job_title = sname+"_in_"+uname
+            wsname = "default_ws"
+            job_directory = "job-"+timenow
+            return jobpath, (uname, sname, job_title, wsname, job_directory)
     ########################################################################        
     # otherwise, use 'user_name' in the params
     if 'user_name' in gui_params['hpo_system_attr']:
