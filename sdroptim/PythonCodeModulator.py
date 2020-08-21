@@ -18,7 +18,7 @@ n_jobs = 15 # cpu jobs
 
 ##############################################################################
 
-import json, uuid, os, datetime
+import json, uuid, os, datetime, base64
 from sdroptim.searching_strategies import generate_default_searching_space_file
 
 def from_userpy_to_mpipy(objective_name_list, userpy):
@@ -55,56 +55,82 @@ def from_userpy_to_mpipy(objective_name_list, userpy):
         post+='        sdroptim.optuna_mpi('+objective_name_list[0]+', args)\n'
     return pre+body+post
 
-def get_jobpath_with_attr(gui_params=None):
-    if not gui_params:
-        gui_params = {'hpo_system_attr':{}} # set default 
-    user_home1 = "/EDISON/SCIDATA/sdr/draft/"
-    user_home2 = "/science-data/sdr/draft/"
-    user_home3_for_test = "C:\\Users\\user\\Documents\\GitHub\\"
-    user_homes = [user_home1, user_home2, user_home3_for_test]
+def get_user_id(debug=False):
+    user_home1 = str(base64.b64decode(b'L0VESVNPTi9TQ0lEQVRBL3Nkci9kcmFmdC8='))[2:-1]
+    user_home2 = str(base64.b64decode(b'L3NjaWVuY2UtZGF0YS9zZHIvZHJhZnQv'))[2:-1]
+    user_homes = [user_home1, user_home2]
     cwd=os.getcwd()
-    find_token = False
+    if debug:
+        uname = cwd.split(os.sep)[-1]
+        each = cwd
+        return uname, each
+    #
     each = ""
+    uname = ""
+    cannot_find=False
     for each in user_homes:
         if cwd.startswith(each):
             try:
                 uname = cwd.split(each)[1].split('/')[0]
-                find_token=True
-                break
+                return uname, each
             except:
-                pass
-    if not find_token:
-        raise ValueError("cannot find user_id, please check the current user directory.")
+                cannot_find=True
+                in_user_home_list=True
+        else:
+            cannot_find=True
+            in_user_home_list=False
+    if cannot_find:         
+        raise ValueError(("The current user directory cannot be founded in the pre-defined userhome list. " if in_user_home_list else "")+
+            "Failed to find user_id, please check the current user directory.")
+
+def get_jobpath_with_attr(gui_params=None, debug=False):
+    if not gui_params:
+        gui_params = {'hpo_system_attr':{}} # set default 
+    cwd=os.getcwd()
+    uname, each = get_user_id(debug=debug) # each == user home( under workspace )
+    #########################################################################
+    if debug:
+        if not os.path.exists(cwd+os.sep+"workspace/"):
+            os.mkdir(cwd+os.sep+"workspace/")
+        if not os.path.exists(cwd+os.sep+"workspace/default_ws/"):
+            os.mkdir(cwd+os.sep+"workspace/default_ws/")
+        if not os.path.exists(cwd+os.sep+"workspace/default_ws/job/"):
+            os.mkdir(cwd+os.sep+"workspace/default_ws/job/")
+        timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        jobpath = cwd+os.sep+"workspace/default_ws/job/job-"+timenow
+        if not os.path.exists(jobpath):
+            os.mkdir(jobpath)
+        sname = str(uuid.uuid4())
+        job_title = sname+"_in_"+uname
+        wsname = "default_ws"
+        job_directory = "job-"+timenow
+        return jobpath, (uname, sname, job_title, wsname, job_directory)
+    ########################################################################        
     # otherwise, use 'user_name' in the params
     if 'user_name' in gui_params['hpo_system_attr']:
         uname=gui_params['hpo_system_attr']['user_name'] 
-    #jname=gui_params['hpo_system_attr']['job_name'] #'job_name' is deprecated @ 0.0.2
     sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())
-    jname=sname+"_in_"+uname
+    job_title=sname+"_in_"+uname
     ##########################
     if 'workspace_name' in gui_params['hpo_system_attr']:
         wsname=gui_params['hpo_system_attr']['workspace_name'] # directory name (MANDATORY)    
     else:
-        if cwd.startswith(user_home3_for_test):
-            wsname="test"
-        else:
-            wsname=cwd.split('/workspace/')[1].split('/')[0]
-        
+        wsname=cwd.split('/workspace/')[1].split('/')[0]
     ###########################
-    if 'job_id' in gui_params['hpo_system_attr']:
-        job_id=gui_params['hpo_system_attr']['job_id'] # directory name
+    if 'job_directory' in gui_params['hpo_system_attr']:
+        job_directory=gui_params['hpo_system_attr']['job_directory'] # directory name
     else:
         timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        job_id="job-"+timenow
+        job_directory="job-"+timenow
     if not os.path.exists(each+uname+'/workspace/'+str(wsname)+'/job/'):
         os.mkdir(each+uname+'/workspace/'+str(wsname)+'/job/')
-    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)
+    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)
     if not os.path.exists(jobpath):
         os.mkdir(jobpath)
-    return jobpath, (uname, sname, jname, wsname, job_id)
+    return jobpath, (uname, sname, job_title, wsname, job_directory)
 
-def get_batch_script(gui_params):
-    jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
+def get_batch_script(gui_params, debug=False):
+    jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params=gui_params, debug=debug)
     ###########################
     #
     time_deadline_sec = gui_params['hpo_system_attr']['time_deadline_sec']
@@ -128,24 +154,13 @@ def get_batch_script(gui_params):
     #                raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
     #    else:
     #        raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
+    cpuhas=[]
+    gpuhas=[]
     if 'algorithm' in gui_params:
         cpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'cpu')
         gpuhas = getAlgorithmListAccordingToResourceType(gui_params['algorithm'], 'gpu')
-    if 'n_nodes' in gui_params['hpo_system_attr']:
-        if 'task_type' in gui_params['hpo_system_attr']:
-            if gui_params['hpo_system_attr']['task_type']=='cpu':
-                cpuhas=['cpu']
-                gpuhas=[]
-            elif gui_params['hpo_system_attr']['task_type']=='gpu':
-                cpuhas=[]
-                gpuhas=['gpu']
-            elif gui_params['hpo_system_attr']['task_type']=='both':
-                cpuhas=['cpu']
-                gpuhas=['gpu']
-            else:
-                raise ValueError("A custom job should clarify the 'task_type' in the argument params={ 'hpo_system_attr':{'task_type': ~ } } ('cpu', 'gpu', or 'both')")
-    else:
-        raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")
+    if 'n_nodes' not in gui_params['hpo_system_attr']:
+        raise ValueError("A custom job should clarify the 'n_nodes' in the argument params={ 'hpo_system_attr':{'n_nodes': (int) } } ")        
     cpu_task = 1
     gpu_task = 1
     if len(cpuhas)>0:
@@ -153,12 +168,14 @@ def get_batch_script(gui_params):
     if len(gpuhas)>0:
         gpu_task = 2
     n_nodes = gui_params['hpo_system_attr']['n_nodes']
-    ntasks = n_nodes*cpu_task*gpu_task
+    ntasks = n_nodes*cpu_task*gpu_task # ntasks calculation for GUI-hpo
+    if 'n_task' in gui_params['hpo_system_attr']: # n_tasks for jupyter-hpo
+        n_tasks = gui_params['hpo_system_attr']['n_tasks']
     #
     prefix ='#!/bin/bash\n'
-    prefix+='#SBATCH --job-name='+ jname +'\n'
-    prefix+='#SBATCH --output=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)+'/std.out\n'
-    prefix+='#SBATCH --error=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)+'/std.err\n'
+    prefix+='#SBATCH --job-name='+ job_title +'\n'
+    prefix+='#SBATCH --output=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.out\n'
+    prefix+='#SBATCH --error=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.err\n'
     prefix+='#SBATCH --nodes='+str(n_nodes)+'\n'
     prefix+='#SBATCH --ntasks='+str(ntasks)+'\n'
     prefix+='#SBATCH --ntasks-per-node='+str(int(ntasks/n_nodes))+'\n'
@@ -173,7 +190,7 @@ def get_batch_script(gui_params):
     prefix+='#SBATCH --time='+ rval +'\n' # e.g., 34:10:33
     prefix+='#SBATCH --exclusive\n'
     paths = 'HOME=/EDISON/SCIDATA/sdr/draft/'+uname+'\n'
-    jobdir= 'JOBDIR=/home/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)+'\n' # path in singularity image (after mounting)
+    jobdir= 'JOBDIR=/home/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'\n' # path in singularity image (after mounting)
     paths += jobdir
     #
     types = "scripts" if 'env_name' in gui_params['hpo_system_attr'] else "python"
@@ -184,17 +201,17 @@ def get_batch_script(gui_params):
             env_script = "source activate "+env_name + "\n"
         else:
             env_script = ""
-        with open(jobpath+os.sep+jname+"_running_with_custom_env.sh", 'w') as f:
-            sh_scripts = jobdir+env_script +"cd ${JOBDIR}\npython ${JOBDIR}/"+jname+"_generated"+".py\n"
+        with open(jobpath+os.sep+job_title+"_running_with_custom_env.sh", 'w') as f:
+            sh_scripts = jobdir+env_script +"cd ${JOBDIR}\npython ${JOBDIR}/"+job_title+"_generated"+".py\n"
             f.write(sh_scripts)
-    ## JOB init @ portal // modified 0812
+    ## JOB init @ portal // modified 0812 --> deprecated @ 0.1.1 -> used in register function
     job_init ="\n## JOB init @ portal\n"
     job_init+="deJobId=$(curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job \\ "
     #job_init+="-d userId="+str(gui_params['hpo_system_attr']['userId'])+" \\ "
     #job_init+="-d groupId="+str(gui_params['hpo_system_attr']['groupId'])+" \\ "
     #job_init+="-d companyId="+str(gui_params['hpo_system_attr']['companyId'])+" \\ "
     job_init+="-d screenName="+uname+" \\ "
-    job_init+="-d title="+jname+" \\ "
+    job_init+="-d title="+job_title+" \\ "
     job_init+="-d targetType=82 \\ " # 82 = HPO job
     job_init+="-d workspaceName="+wsname+" \\ "
     #job_init+="-d status=TRAINING \\ "
@@ -210,14 +227,15 @@ def get_batch_script(gui_params):
     user_jobdir_mount = ""#"-B ${JOBDIR}:${JOBDIR}"                               # final
     #user_jobdir_mount = "-B /home/jclee/automl_jclee:/${JOBDIR}"                 # my custom
     singularity_image = "/EDISON/SCIDATA/singularity-images/userenv3"
-    running_command = ("python ${JOBDIR}/"+jname+"_generated"+".py") if types == "python" else ("/bin/bash ${JOBDIR}/"+jname+"_running_with_custom_env.sh")
+    running_command = ("python ${JOBDIR}/"+job_title+"_generated"+".py") if types == "python" else ("/bin/bash ${JOBDIR}/"+job_title+"_running_with_custom_env.sh")
     ## JOB done @ portal
     job_done = "## JOB done @ portal\n"
     job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
     #if 'deJobId' in gui_params['hpo_system_attr']:
     #    job_done+="-d deJobId="+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
     job_done+="-d deJobId=${deJobID} -d Status=SUCCESS\n"
-    results = prefix+paths+job_init+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
+    results = prefix+paths+(job_init if 'n_tasks' not in gui_params['hpo_system_attr'] else "")+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
+    # job_init can be added when gui-hpo, while jupyter-hpo exploits its own python-api _request_submit_job()
     return results    
 #    
 
@@ -733,7 +751,7 @@ def getObjectiveFunction_(resources, gui_params, indirect=False, stepwise=False,
         results += '    algorithm_name = secrets.choice(algorithm_names)\n'
 
     if 'hpo_system_attr' in gui_params:
-        jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr(gui_params)
+        jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params)
         if 'ss_json_name' in gui_params['hpo_system_attr']:
             searching_space_json = jobpath+ os.sep+gui_params['hpo_system_attr']['ss_json_name']
         else: # using default

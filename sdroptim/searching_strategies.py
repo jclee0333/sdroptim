@@ -348,7 +348,7 @@ def get_argparse(automl=False, json_file_name=None):
             "ss_json":"searching_space_automl.json",
             "nb_name":"",
             "study_name":"",
-            "job_id":"",
+            "job_directory":"",
             "metadata_json":"",
             "task_name":"",
             "algorithm_name":"",
@@ -378,7 +378,7 @@ def get_argparse(automl=False, json_file_name=None):
                 with open(json_file_name) as data_file:
                     gui_params = json.load(data_file)
                 #filepath=gui_params['ml_file_path']
-                jobpath, (uname, sname, jname, wsname, job_id) = sdroptim.get_jobpath_with_attr(gui_params)
+                jobpath, (uname, sname, job_title, wsname, job_directory) = sdroptim.get_jobpath_with_attr(gui_params)
                 filename=os.path.basename(args.ss_json)
                 location = jobpath+os.sep+filename
             else:

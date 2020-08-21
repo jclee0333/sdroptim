@@ -3,8 +3,10 @@
   (for Jupyter User)
   -- jclee@kisti.re.kr
 """
-from sdroptim.PythonCodeModulator import get_jobpath_with_attr, get_batch_script, from_userpy_to_mpipy
-import json
+from sdroptim.PythonCodeModulator import get_jobpath_with_attr, get_batch_script, from_userpy_to_mpipy, get_user_id
+import json, requests, base64
+from subprocess import (Popen, PIPE)
+import optuna
 
 def get_params(objective):
     '''
@@ -163,39 +165,25 @@ def override_objfunc_with_newparams(objective, params=None):
     return results
 #####################################
 #####################################
-def create_hpojob(study_name=None, workspace_name=None, job_id=None):
-    return Job(study_name, workspace_name, job_id)
+def create_hpojob(study_name=None, workspace_name=None, job_directory=None, debug=False):
+    return Job(study_name=study_name, workspace_name=workspace_name, job_directory=job_directory, debug=debug)
 
-def load_hpojob(workspace_name=None, job_id=None):
-    user_home1 = "/EDISON/SCIDATA/sdr/draft/"
-    user_home2 = "/science-data/sdr/draft/"
-    user_home3_for_test = "C:\\Users\\user\\Documents\\GitHub\\"
-    user_homes = [user_home1, user_home2, user_home3_for_test]
-    cwd=os.getcwd()
-    find_token = False
-    each = ""
-    for each in user_homes:
-        if cwd.startswith(each):
-            try:
-                uname = cwd.split(each)[1].split('/')[0]
-                find_token=True
-                break
-            except:
-                pass
-    if not find_token:
-        raise ValueError("cannot find user_id, please check the current user directory.")
-    ###
+def load_hpojob(workspace_name=None, job_directory=None, debug=False):
+    uname, each = get_user_id(debug=debug)
+    cwd = os.getcwd()
     if workspace_name is None:
-        if cwd.startswith(user_home3_for_test):
-            wsname="test"
+        if debug:
+            wsname="ws_default"
         else:
             wsname=cwd.split('/workspace/')[1].split('/')[0]
     else:
         wsname = workspace_name
     ###
-    if job_id is None:
-        raise ValueError("load_hpojob() requires job_id(directory name). Try again.")
-    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_id)
+    if job_directory is None:
+        raise ValueError("load_hpojob() requires job_directory(directory name). Try again.")
+    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)
+    if debug:
+        jobpath = each+'/workspace/'+str(wsname)+'/job/'+str(job_directory)
     ###
     with open(jobpath+os.sep+"metadata.json") as data_file:
         gui_params = json.load(data_file)
@@ -205,11 +193,15 @@ class Job(object):
     def __init__(self,
                  study_name=None,
                  workspace_name=None,
-                 job_id=None,
+                 job_directory=None,
                  env_name=None,
                  task_name="unknown_task",
                  algorithm="unknown_algo",
-                 gui_params=None):
+                 gui_params=None,
+                 debug=False):
+        # default setting
+        self.debug=True if debug else False
+        #
         if not gui_params:
             gui_params = {'kernel':'Python','task':task_name, 'algorithm':[algorithm],'hpo_system_attr':{}} # set default 
             #self.task_name = task_name
@@ -218,12 +210,12 @@ class Job(object):
                 gui_params['hpo_system_attr'].update({"study_name":study_name})
             if workspace_name is not None:
                 gui_params['hpo_system_attr'].update({"workspace_name":workspace_name})
-            if job_id is not None:
-                gui_params['hpo_system_attr'].update({"job_id":job_id})
+            if job_directory is not None:
+                gui_params['hpo_system_attr'].update({"job_directory":job_directory})
             if env_name is not None:
                 gui_params['hpo_system_attr'].update({"env_name":env_name})
                 self.env_name=env_name
-            jobpath, (uname, study_name, jname, workspace_name, job_id) = get_jobpath_with_attr(gui_params)
+            jobpath, (uname, study_name, job_title, workspace_name, job_directory) = get_jobpath_with_attr(gui_params=gui_params, debug=debug)
             gui_params['hpo_system_attr'].update({'user_name':uname})
             self.job_path = jobpath
             gui_params['hpo_system_attr'].update({"job_path":self.job_path})
@@ -231,15 +223,16 @@ class Job(object):
             gui_params['hpo_system_attr'].update({"study_name":self.study_name})
             self.workspace_name = workspace_name
             gui_params['hpo_system_attr'].update({"workspace_name":self.workspace_name})
-            self.job_id = job_id
-            gui_params['hpo_system_attr'].update({"job_id":self.job_id})
-            self.job_name = jname
-            gui_params['hpo_system_attr'].update({"job_name":self.job_name})
+            self.job_directory = job_directory
+            gui_params['hpo_system_attr'].update({"job_directory":self.job_directory})
+            self.job_title = job_title
+            gui_params['hpo_system_attr'].update({"job_name":self.job_title})
             #
             print("Job path: ", self.job_path)
             print("Workspace name: ", self.workspace_name)
-            print("Job id: ", self.job_id)
+            print("Job directory: ", self.job_directory)
             print("Study name: ", self.study_name)
+            print("\n")
             #
             self.gui_params=gui_params
             jsonfile = json.dumps(gui_params)
@@ -250,13 +243,13 @@ class Job(object):
             #self.algorithm = gui_params['algorithm']
             self.job_path = gui_params['hpo_system_attr']['job_path']
             self.study_name = gui_params['hpo_system_attr']['study_name']
-            self.job_name = gui_params['hpo_system_attr']['job_name']
+            self.job_title = gui_params['hpo_system_attr']['job_name']
             self.workspace_name = gui_params['hpo_system_attr']['workspace_name']
-            self.job_id = gui_params['hpo_system_attr']['job_id']
+            self.job_directory = gui_params['hpo_system_attr']['job_directory']
             #
             print("Job path: ", self.job_path)
             print("Workspace name: ", self.workspace_name)
-            print("Job id: ", self.job_id)
+            print("Job directory: ", self.job_directory)
             print("Study name: ", self.study_name)
             print("\n")
             #
@@ -271,15 +264,21 @@ class Job(object):
     def optimize(self,
         objective,
         n_nodes=1,
+        n_tasks=2,
         max_sec=300,
         direction='maximize',
         #greedy=True,
         stepwise=False,
         searching_space="searching_space",
-        task_type="gpu"
+        #task_type="gpu"
         ):
+        ## configurations
+        max_nodes = 4
         #
-        self.n_nodes = n_nodes
+        if n_nodes>max_nodes:
+            raise ValueError("The maximum number of n_nodes is 4. Try again.")
+        else:
+            self.n_nodes = n_nodes
         self.max_sec = max_sec
         #self.greedy = greedy
         if 'direction' in self.gui_params['hpo_system_attr']: # previous direction cannot be modified
@@ -289,18 +288,23 @@ class Job(object):
         print("Study direction: "+self.direction)
         self.stepwise = stepwise
         self.searching_space = searching_space
-        self.task_type = task_type
-        print("Task type: "+self.task_type)
-        # update gui_params
+        self.n_tasks = n_tasks
+        if self.n_tasks/self.n_nodes > 32:
+            raise ValueError("Current n_tasks is too big. Each node can hold 32 CPU tasks max.")
         self.gui_params['hpo_system_attr'].update({'n_nodes':int(self.n_nodes)})
+        self.gui_params['hpo_system_attr'].update({'n_tasks':int(self.n_tasks)})
+        print("Note that currently the maximum n_nodes is 4 and each node has 32 CPU core and 2 GPU (nvidia P100).")
+        print("For example, 8 gpu tasks might be preocessed via 4 nodes (4 nodes * each 2 Gpu tasks). In this case, n_tasks is 8.")
         print(str(self.n_nodes)+" nodes are preparing for this job ...")
-        self.gui_params['hpo_system_attr'].update({'time_deadline_sec':int(self.max_sec)})
+        print(str(self.n_tasks)+" tasks are evenly distributed to each node.")
         print("This job will be terminated within "+str(self.max_sec)+" (sec) after beginning the job.")
+        # update gui_params       
+        self.gui_params['hpo_system_attr'].update({'time_deadline_sec':int(self.max_sec)})
         self.gui_params['hpo_system_attr'].update({'direction':self.direction})
-        #self.gui_params['hpo_system_attr'].update({'greedy':1 if self.greedy == True else 0})
+        #self.gui_params['hpo_system_attr'].update({'greedy':1 if self.greedy == True else 0}) # greedy cannot be used in the jupyter-hpo job
         self.gui_params['hpo_system_attr'].update({'stepwise':1 if self.stepwise == True else 0})
         self.gui_params['hpo_system_attr'].update({'searching_space':searching_space+".json"})
-        self.gui_params['hpo_system_attr'].update({"task_type":self.task_type})
+        self.gui_params['hpo_system_attr'].update({"n_tasks":self.n_tasks})
         #
         params = get_params(objective)
         params_to_update = {self.gui_params['task']:{self.gui_params['algorithm'][0]:params}}
@@ -311,21 +315,22 @@ class Job(object):
         #
         mod_func_stepwise=""
         if stepwise:
-            
             func_stepwise = check_stepwisefunc(objective)
             if not func_stepwise:
                 mod_func_stepwise=override_objfunc_with_newparams(objective)
                 if mod_func_stepwise:
                     print("The objective function has been overrided for using the stepwise strategy.")
-        #copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
-        copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='copy')
+        if self.debug:
+            copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='copy')
+        else:
+            copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
         if copied:
             print("Symlinks are generated in "+str(self.job_path))
         gen_py_pathname = save_this_nb_to_py(dest_dir=self.job_path)
         if gen_py_pathname:
             print("This notebook has been copied as a python file(.py) successively.")
         generated_code = generate_mpipy(objective_name=objective.__name__, userpy=gen_py_pathname, postfunc=mod_func_stepwise)
-        with open(self.job_path+os.sep+self.job_name+'_generated.py', 'w') as f:
+        with open(self.job_path+os.sep+self.job_title+'_generated.py', 'w') as f:
             f.write(generated_code)
         if generated_code:
             print("The Python Script for submit a job has been generated successively.")
@@ -334,42 +339,180 @@ class Job(object):
             f.write(jsonfile)
         if jsonfile:
             print("metadata.json has been updated successively.")
+        else:
+            raise ValueError("metadata.json cannnot be generated.")
         #
-        jobscripts= get_batch_script(self.gui_params)
-        with open(self.job_path+os.sep+'job.sh', 'w') as f:
+        jobscripts= get_batch_script(gui_params=self.gui_params, debug=self.debug)
+        jobshfile_path= self.job_path+os.sep+'job.sh'
+        with open(jobshfile_path, 'w') as f:
             f.write(jobscripts)
+        # Set permission to run the script
+        os.chmod(jobshfile_path, 0o777)
         if jobscripts:
             print("job.sh has been generated successively.")
         #
+        # submit phase
+        print("\n")
+        if self._request_submit_job():
+            print("Job has been registerd to the portal database.")
+        #
+        if self._run_slurm_script():
+            print("Job has been submitted !")
         ## 이후과정은 sbatch job.sh 실행하는 내용
         #results=run_job_script(user_name = self.gui_params['hpo_system_attr']['user_name'], dest_dir=self.jobpath)
         ## 8/20 계획 : getStudy 개체를 붙여서 dataframe을 jupyter에서 불러오고 이를 분석할 수 있어야함
         #print(results)
+        ####
+    def _request_submit_job(self):
+        user_id, _, = get_user_id(debug=self.debug)
+        data = {
+          'screenName': user_id,
+          'title': self.job_title,
+          'targetType': '82', # 82= HPO Job
+          'workspaceName': self.workspace_name,
+          'location': self.job_path 
+        }
+        if self.debug:
+            print(data)        
+        response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job', data=data)
+        if response.status_code == 200:            
+            self.job_id = response.json()
+            if self.debug:
+                print(self.job_id)            
+        else:
+            raise ValueError("A problem occured when generating the job.")
+        return True
+
+    def _run_slurm_script(self):
+        if hasattr(self, 'job_id'):
+            user_id, _, _ = get_user_id(debug=self.debug)
+            data = {
+              'screenName': user_id,
+              'location': self.job_path
+            }
+            if self.debug:
+                print(data)
+            print("Running Slurm script...")
+            response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-run', data=data)
+            if response.status_code == 200:
+                return True
+        else:
+            raise ValueError("Slurm Job Not Found.")            
+        # waiting for slurm job id
+        #time.sleep(3)
+        #try:
+        #    with open(self.this_job_path+'/job.id','r') as f:
+        #        idstr = f.readline()
+        #    self.slurm_job_directory = int(idstr)
+        #except:
+        #    print("Slurm Job Not Found.")
+
+    def _request_to_portal_stop_job(self):
+        if hasattr(self, 'job_id'):
+            data = {
+              'jobId': self.job_id,
+              'screenName': self.user_id
+            }
+            response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-cancel', data=data)    
+            print("Stop a Requested Job on the Portal.")
+        else:
+            raise ValueError("Slurm Job Not Found. Job cancel failed.")
+    
+    def stop(self):
+        self._request_to_portal_stop_job()
+
+    def get_study(self):
+        return self._get_study_object(types = "study")
+
+    def get_study_dataframe(self):
+        df = self._get_study_object(types = "dataframe")
+        self.df = df
+        print("Current study dataframe can be founded at '{job}.df'")
+        return df
+
+    def _get_study_object(self, types):
+        key = str(base64.b64decode('cG9zdGdyZXNxbDovL3Bvc3RncmVzOnBvc3RncmVzQDE1MC4xODMuMjQ3LjI0NDo1NDMyLw=='))[2:-1]
+        url = key + self.user_id
+        try:
+            rdbs = optuna.storages.RDBStorage(url)
+            study_id = rdbs.get_study_id_from_name(self.study_name)
+        except:
+            raise ValueError(
+                    "Cannot find the study_name {}".format(
+                        self.study_name#, args.storage_url
+                    ))
+        try:
+            s = optuna.create_study(load_if_exists=True, study_name=self.study_name, storage=url, direction='minimize')
+        except:
+            s = optuna.create_study(load_if_exists=True, study_name=self.study_name, storage=url, direction='maximize')
+        
+        if types == "study":
+            return s
+        elif types == "dataframe":
+            return s.trials_dataframe()
+
+    def show_logs(self, show_type='both'):
+        if show_type == 'output':
+            show_list = ['out']
+        elif show_type == 'error':
+            show_list = ['err']
+        else:
+            show_list = ['out','err']
+        for each in show_list:
+            print("** print std."+each)
+            with open(self.job_path+'std.'+each) as f:
+                temp=f.readlines()
+            print(temp)
+            print("\n")
+
+    def show_job_status(self):
+        if hasattr(self, 'job_id'):
+            command = "scontrol show job "+str(self.job_id)
+            stdout, stderr = self._execute_subprocess(command)
+            print(stdout)
+        else:
+            raise ValueError("Slurm Job Not Found. Show job status failed.")
+
+    def show_job_queue(self):
+        stdout, stderr = self._execute_subprocess("squeue")
+        print(stdout)
+
+    def show_dir(self):
+        stdout, stderr = self._execute_subprocess("ls -alF")
+        print(stdout)
+
+    def _execute_subprocess(self, command):
+        process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()
+        return stdout.decode("utf-8"), stderr.decode("utf-8")
 
 #####################################
 #####################################
 
 def generate_mpipy(objective_name, userpy, postfunc=""):
     import ast, astunparse
-    with open(userpy) as f:
-        p = ast.parse(f.read())
-    for node in p.body[:]:
-        if type(node) not in [ast.FunctionDef, ast.Import, ast.ImportFrom, ast.ClassDef]:
-            p.body.remove(node)
-    pre = astunparse.unparse(p)
-    pre+="\n"+postfunc
-    pre+="\n\n"
-    body ='if __name__ == "__main__":\n'
-    body+='    import optuna\n'
-    body+='    import sdroptim\n'
-    body+='    stepwise, task_and_algorithm = sdroptim.check_stepwise_available("metadata.json")\n'
-    body+='    args = sdroptim.get_argparse(automl=True, json_file_name="metadata.json")\n'
-    #
-    post ='    if stepwise:\n'
-    post+='        sdroptim.stepwise_mpi_time('+objective_name+', args, task_and_algorithm)\n'
-    post+='    else:\n'
-    post+='        sdroptim.optuna_mpi('+objective_name+', args)\n'
-    return pre+body+post
+    try:
+        with open(userpy) as f:
+            p = ast.parse(f.read())
+        for node in p.body[:]:
+            if type(node) not in [ast.FunctionDef, ast.Import, ast.ImportFrom, ast.ClassDef]:
+                p.body.remove(node)
+        pre = astunparse.unparse(p)
+        pre+="\n"+postfunc
+        pre+="\n\n"
+        body ='if __name__ == "__main__":\n'
+        body+='    import optuna\n'
+        body+='    import sdroptim\n'
+        body+='    stepwise, task_and_algorithm = sdroptim.check_stepwise_available("metadata.json")\n'
+        body+='    args = sdroptim.get_argparse(automl=True, json_file_name="metadata.json")\n'
+        #
+        post ='    if stepwise:\n'
+        post+='        sdroptim.stepwise_mpi_time('+objective_name+', args, task_and_algorithm)\n'
+        post+='    else:\n'
+        post+='        sdroptim.optuna_mpi('+objective_name+', args)\n'
+        return pre+body+post
+    except:
+        raise ValueError("The Python Script for submit a job cannot be generated.")
 
 def SubmitHPOjob(objective_or_setofobjectives, args):
     ''' 1. file copying( symbolic link )
@@ -387,19 +530,19 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
     for each_obj in objective_or_setofobjectives:
         objective_name_list.append(each_obj.__name__)
     ##################################################
-    if args.job_id == "": ## generate job_id(directory)
-        jobpath, (uname, sname, jname, wsname, job_id) = get_jobpath_with_attr()
+    if args.job_directory == "": ## generate job_directory(directory)
+        jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr()
         args.update({'jobpath':jobpath})
         args.update({'uname':uname})
         args.update({'sname':sname})
-        args.update({'jname':jname})
+        args.update({'job_title':job_title})
         args.update({'wsname':wsname})
-        args.update({'job_id':job_id})
+        args.update({'job_directory':job_directory})
         copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=jobpath, by='symlink')
     else:
         with open(args.metadata) as data_file:
             gui_params = json.load(data_file)
-        jobpath = gui_params['hpo_system_attr']['job_id']
+        jobpath = gui_params['hpo_system_attr']['job_directory']
     #######
     gen_py_pathname=save_this_nb_to_py(dest_dir=jobpath) # should run in jupyter only
     # 1. generates gui_params and its metadata.json
@@ -417,7 +560,7 @@ def SubmitHPOjob(objective_or_setofobjectives, args):
         gui_params = json.load(data_file)
     ##
     generated_code = from_userpy_to_mpipy(objective_name_list=objective_name_list, args=args, userpy=gen_py_pathname)
-    with open(jobpath+os.sep+args.jname+'_generated.py', 'w') as f:
+    with open(jobpath+os.sep+args.job_title+'_generated.py', 'w') as f:
         f.write(generated_code)
     # 생성된 py에서 함수만 호출(class, def) -> 이전 함수 활용
     # 그리고 실행 함수 제작(mpirun 용)
@@ -455,7 +598,7 @@ def generates_metadata_json(args, dest_dir):
         env_name = '"env_name":"'+args.env_name+'", '
     else:
         env_name = ""
-    results+= '"job_name":"'+args.jname+'", '+env_name+'"workspace_name":"'+args.wsname+'", "job_id":"'+args.job_id+'", '
+    results+= '"job_name":"'+args.job_title+'", '+env_name+'"workspace_name":"'+args.wsname+'", "job_directory":"'+args.job_directory+'", '
     results+= '"time_deadline_sec": '+str(args.max_sec)+', "n_nodes":'+str(args.n_nodes)+', '
     results+= '"greedy":'+('0' if not args.greedy else '1')+', "stepwise":'+('0' if not args.stepwise else '1') + ', '
     results+= '"top_n_all":'+str(args.top_n_all)+ ', "top_n_each_algo":'+str(args.top_n_each_algo)+'}\n'
