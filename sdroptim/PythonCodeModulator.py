@@ -86,10 +86,13 @@ def get_user_id(debug=False):
 def get_jobpath_with_attr(gui_params=None, debug=False):
     if not gui_params:
         gui_params = {'hpo_system_attr':{}} # set default 
+        it_is_first_try = True
+    else:
+        it_is_first_try = False
     cwd=os.getcwd()
     uname, each = get_user_id(debug=debug) # each == user home( under workspace )
     #########################################################################
-    if gui_params is None:
+    if it_is_first_try:
         if debug:
             if not os.path.exists(cwd+os.sep+"workspace/"):
                 os.mkdir(cwd+os.sep+"workspace/")
