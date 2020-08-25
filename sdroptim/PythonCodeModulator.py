@@ -88,7 +88,6 @@ def get_jobpath_with_attr(gui_params=None, debug=False):
         gui_params = {'hpo_system_attr':{}} # set default 
     cwd=os.getcwd()
     uname, each = get_user_id(debug=debug) # each == user home( under workspace )
-    #print("****", gui_params)
     #########################################################################
     if debug:
         if not os.path.exists(cwd+os.sep+"workspace/"):

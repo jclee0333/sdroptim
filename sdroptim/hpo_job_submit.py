@@ -376,7 +376,9 @@ class Job(object):
             print(data)        
         response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job', data=data)
         if response.status_code == 200:            
-            self.job_id = response.json()
+            #self.job_id = response.json()
+            with open("job.id", "r") as f:
+                self.job_id = int(f.readline())
             if self.debug:
                 print(self.job_id)            
         else:
@@ -386,6 +388,7 @@ class Job(object):
     def _run_slurm_script(self):
         if hasattr(self, 'job_id'):
             user_id = get_user_id(debug=self.debug)
+            #print(user_id)
             data = {
               'screenName': user_id[0],
               'location': self.job_path
@@ -460,7 +463,7 @@ class Job(object):
             show_list = ['out','err']
         for each in show_list:
             print("** print std."+each)
-            with open(self.job_path+'std.'+each) as f:
+            with open(self.job_path+os.sep+'std.'+each) as f:
                 temp=f.readlines()
             print(temp)
             print("\n")
