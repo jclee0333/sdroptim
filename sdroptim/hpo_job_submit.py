@@ -264,7 +264,7 @@ class Job(object):
     def optimize(self,
         objective,
         n_nodes=1,
-        n_tasks=2,
+        n_tasks=None,
         max_sec=300,
         direction='maximize',
         #greedy=True,
@@ -288,7 +288,10 @@ class Job(object):
         print("Study direction: "+self.direction)
         self.stepwise = stepwise
         self.searching_space = searching_space
-        self.n_tasks = n_tasks
+        if n_tasks == None:
+            self.n_tasks = self.n_nodes * 2
+        else:
+            self.n_tasks = n_tasks
         if self.n_tasks/self.n_nodes > 32:
             raise ValueError("Current n_tasks is too big. Each node can hold 32 CPU tasks max.")
         self.gui_params['hpo_system_attr'].update({'n_nodes':int(self.n_nodes)})
