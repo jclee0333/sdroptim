@@ -188,7 +188,7 @@ def get_batch_script(gui_params, debug=False):
     
     timed=datetime.timedelta(seconds=time_deadline_sec)
     n_days = timed.days
-    rest_seconds = timed.seconds# + 300 # marginal seconds (5min)
+    rest_seconds = timed.seconds + 60 # marginal seconds (1min)
     timed_without_days=datetime.timedelta(seconds=rest_seconds)
     rval=str(n_days)+"-"+str(timed_without_days)
     #
