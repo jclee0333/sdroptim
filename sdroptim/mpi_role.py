@@ -193,7 +193,7 @@ def optuna_mpi(objective, arg):
             print(">> Process (rank %d, gpu %d) on %s will waiting other process.." % (rank,gpu_no,name))
             break
         else:
-            print("??????",tag)
+            pass#print("??????",tag)
     comm.send(None, dest=0, tag=tags.EXIT)
 
 def stepwise_mpi_time(objective, arg, task_and_algorithm):

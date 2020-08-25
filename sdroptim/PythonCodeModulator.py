@@ -134,7 +134,7 @@ def get_jobpath_with_attr(gui_params=None, debug=False):
         os.mkdir(jobpath)
     return jobpath, (uname, sname, job_title, wsname, job_directory)
 
-def get_batch_script(gui_params, debug=False):
+def get_batch_script(gui_params, debug=False, dejob_id=""):
     jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params=gui_params, debug=debug)
     ###########################
     #
@@ -174,7 +174,7 @@ def get_batch_script(gui_params, debug=False):
         gpu_task = 2
     n_nodes = gui_params['hpo_system_attr']['n_nodes']
     ntasks = n_nodes*cpu_task*gpu_task # ntasks calculation for GUI-hpo
-    if 'n_task' in gui_params['hpo_system_attr']: # n_tasks for jupyter-hpo
+    if 'n_tasks' in gui_params['hpo_system_attr']: # n_tasks for jupyter-hpo
         n_tasks = gui_params['hpo_system_attr']['n_tasks']
     #
     prefix ='#!/bin/bash\n'
@@ -238,7 +238,11 @@ def get_batch_script(gui_params, debug=False):
     job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
     #if 'deJobId' in gui_params['hpo_system_attr']:
     #    job_done+="-d deJobId="+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
-    job_done+="-d deJobId=${deJobID} -d Status=SUCCESS\n"
+    if dejob_id:
+        job_done+="-d deJobId="+str(dejob_id)
+    else:
+        job_done+="-d deJobId=${deJobID}"
+    job_done+=" -d Status=SUCCESS\n"
     results = prefix+paths+(job_init if 'n_tasks' not in gui_params['hpo_system_attr'] else "")+mpirun_command+ " " + mpirun_options + " " + singularity_command + " " + user_home_mount_for_custom_enviromnent+ " " + user_jobdir_mount + " " +singularity_image+" " + running_command + "\n\n"+job_done
     # job_init can be added when gui-hpo, while jupyter-hpo exploits its own python-api _request_submit_job()
     return results    

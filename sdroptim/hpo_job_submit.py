@@ -348,7 +348,12 @@ class Job(object):
         else:
             raise ValueError("metadata.json cannnot be generated.")
         #
-        jobscripts= get_batch_script(gui_params=self.gui_params, debug=self.debug)
+        # submit phase
+        print("\n")
+        if self._request_submit_job():
+            print("Job has been registerd to the portal database.")
+        # make jobscript(.sh) using dejob_id        
+        jobscripts= get_batch_script(gui_params=self.gui_params, debug=self.debug, dejob_id=self.dejob_id)
         jobshfile_path= self.job_path+os.sep+'job.sh'
         with open(jobshfile_path, 'w') as f:
             f.write(jobscripts)
@@ -357,10 +362,6 @@ class Job(object):
         if jobscripts:
             print("job.sh has been generated successively.")
         #
-        # submit phase
-        print("\n")
-        if self._request_submit_job():
-            print("Job has been registerd to the portal database.")
         #
         if self._run_slurm_script():
             print("Job has been submitted !")
