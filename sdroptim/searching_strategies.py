@@ -4,7 +4,7 @@
 """
 
 
-import os,sys, copy, random
+import os,sys, copy, random, base64
 
 from mpi4py import MPI
 import optuna
@@ -36,7 +36,7 @@ def get_user_id(debug=False):
     if cannot_find:         
         raise ValueError(("The current user directory cannot be founded in the pre-defined userhome list. " if in_user_home_list else "")+
             "Failed to find user_id, please check the current user directory.")
-            
+
 def get_jobpath_with_attr(gui_params=None, debug=False):
     if not gui_params:
         gui_params = {'hpo_system_attr':{}} # set default 
