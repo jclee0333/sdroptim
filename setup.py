@@ -27,6 +27,7 @@ setup(
                         'astunparse',
                         'numpy',
                         'plotly',
+                        'requests',
                         'pandas',],
     classifiers      = ['Programming Language :: Python :: 3.6',
                         'Intended Audience :: Korea Institute of Science and Technology Information',
