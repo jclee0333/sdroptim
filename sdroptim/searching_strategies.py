@@ -4,89 +4,11 @@
 """
 
 
-import os,sys, copy, random, base64
+import os,sys, copy, random
 
 from mpi4py import MPI
 import optuna
 ######################################
-def get_user_id(debug=False):
-    user_home1 = str(base64.b64decode(b'L0VESVNPTi9TQ0lEQVRBL3Nkci9kcmFmdC8='))[2:-1]
-    user_home2 = str(base64.b64decode(b'L3NjaWVuY2UtZGF0YS9zZHIvZHJhZnQv'))[2:-1]
-    user_homes = [user_home1, user_home2]
-    cwd=os.getcwd()
-    if debug:
-        uname = cwd.split(os.sep)[-1]
-        each = cwd
-        return uname, each
-    #
-    each = ""
-    uname = ""
-    cannot_find=False
-    for each in user_homes:
-        if cwd.startswith(each):
-            try:
-                uname = cwd.split(each)[1].split('/')[0]
-                return uname, each
-            except:
-                cannot_find=True
-                in_user_home_list=True
-        else:
-            cannot_find=True
-            in_user_home_list=False
-    if cannot_find:         
-        raise ValueError(("The current user directory cannot be founded in the pre-defined userhome list. " if in_user_home_list else "")+
-            "Failed to find user_id, please check the current user directory.")
-
-def get_jobpath_with_attr(gui_params=None, debug=False):
-    if not gui_params:
-        gui_params = {'hpo_system_attr':{}} # set default 
-    cwd=os.getcwd()
-    uname, each = get_user_id(debug=debug) # each == user home( under workspace )
-    #########################################################################
-    if debug:
-        if not os.path.exists(cwd+os.sep+"workspace/"):
-            os.mkdir(cwd+os.sep+"workspace/")
-        if not os.path.exists(cwd+os.sep+"workspace/default_ws/"):
-            os.mkdir(cwd+os.sep+"workspace/default_ws/")
-        if not os.path.exists(cwd+os.sep+"workspace/default_ws/job/"):
-            os.mkdir(cwd+os.sep+"workspace/default_ws/job/")
-        
-        if 'job_directory' in gui_params['hpo_system_attr']:
-            job_directory=gui_params['hpo_system_attr']['job_directory'] # directory name
-            jobpath = cwd+os.sep+"workspace/default_ws/job/"+job_directory
-        else: # if it is first try -> generate it
-            timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-            job_directory = "job-"+timenow
-            jobpath = cwd+os.sep+"workspace/default_ws/job/job-"+timenow
-        if not os.path.exists(jobpath):
-            os.mkdir(jobpath)
-        sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())        
-        job_title = sname+"_in_"+uname
-        wsname = "default_ws"
-        return jobpath, (uname, sname, job_title, wsname, job_directory)
-    ########################################################################        
-    # otherwise, use 'user_name' in the params
-    if 'user_name' in gui_params['hpo_system_attr']:
-        uname=gui_params['hpo_system_attr']['user_name'] 
-    sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())
-    job_title=sname+"_in_"+uname
-    ##########################
-    if 'workspace_name' in gui_params['hpo_system_attr']:
-        wsname=gui_params['hpo_system_attr']['workspace_name'] # directory name (MANDATORY)    
-    else:
-        wsname=cwd.split('/workspace/')[1].split('/')[0]
-    ###########################
-    if 'job_directory' in gui_params['hpo_system_attr']:
-        job_directory=gui_params['hpo_system_attr']['job_directory'] # directory name
-    else:
-        timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        job_directory="job-"+timenow
-    if not os.path.exists(each+uname+'/workspace/'+str(wsname)+'/job/'):
-        os.mkdir(each+uname+'/workspace/'+str(wsname)+'/job/')
-    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)
-    if not os.path.exists(jobpath):
-        os.mkdir(jobpath)
-    return jobpath, (uname, sname, job_title, wsname, job_directory)
 
 
 class ModObjectiveFunctionWrapper(object):
@@ -400,7 +322,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
     except:
         print("Cannot generate default searching space!")
     return default_strings
-        
 def get_argparse(automl=False, json_file_name=None):
     import argparse, json
     parser = argparse.ArgumentParser()
@@ -415,60 +336,20 @@ def get_argparse(automl=False, json_file_name=None):
     parser.add_argument('--max_trials', help="maximum trials", type=int, default = 100000)
     parser.add_argument('--max_sec', help="maximul seconds(time)", type=int, default = 300)
     parser.add_argument('--ss_json', help='searching space file location', default ="searching_space_automl.json")
+    parser.add_argument('--job_path', help='job path', type=str, default='./')
     # default params
     parser.add_argument("--seed", type=int, default=2020)
     ## error handling when jupyter call
-    in_jupyter=False
-    try:
-        args = parser.parse_args()
-    except:
-        import easydict
-        args = easydict.EasyDict({
-            #"user_name":"",
-            "ss_json":"searching_space_automl.json",
-            "nb_name":"",
-            "study_name":"",
-            "job_directory":"",
-            "metadata_json":"",
-            "task_name":"",
-            "algorithm_name":"",
-            "env_name":"",
-            "task_type":"gpu",
-            "n_nodes":1,
-            "max_sec":300,
-            "seed":2020,
-            "direction":"maximize",
-            "greedy":False,
-            "stepwise":False,
-            "top_n_all":10,
-            "top_n_each_algo":3
-            #"db_ip":'150.183.247.244',
-            #"db_port":'5432',
-            #"db_id":"postgres",
-            #"db_pass":"postgres",
-            #"max_trials":100000
-        })
-        print("*Note that algorithm_name can be multiple. If multiple, write down the algorithms using comma. e.g., args.algorithm_name = 'lgb, xgboost, pytorch'")
-        in_jupyter=True
-        if json_file_name:
-            automl=True
-    if not os.path.exists(args.ss_json):
-        if not in_jupyter:
-            if json_file_name:
-                with open(json_file_name) as data_file:
-                    gui_params = json.load(data_file)
-                #filepath=gui_params['ml_file_path']
-                jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params)
-                filename=os.path.basename(args.ss_json)
-                location = jobpath+os.sep+filename
-            else:
-                location=args.ss_json
-            generate_default_searching_space_file(location)
+    args = parser.parse_args()
+    if json_file_name:
+        automl=True
     if automl: # study_name, time_deadline_sec, ss_json_path, ss_json_name should be controlled by gui_params json.
         with open(json_file_name) as data_file:
             gui_params = json.load(data_file)
         if 'hpo_system_attr' in gui_params:
             #if ['study_name', 'time_deadline_sec', 'n_cpu', 'n_gpu'] == [each for each in gui_params['hpo_system_attr']]:
+            if 'job_path' in gui_params['hpo_system_attr']:
+                args.job_path = gui_params['hpo_system_attr']['job_path']
             if 'user_name' in gui_params['hpo_system_attr']:
                 args.user_name = gui_params['hpo_system_attr']['user_name']
             if 'study_name' in gui_params['hpo_system_attr']:
@@ -483,7 +364,94 @@ def get_argparse(automl=False, json_file_name=None):
                 args.direction=gui_params['hpo_system_attr']['direction']
                 #print(args)
                 # ncpu gpu will not be controlled in the python script
+        if not os.path.exists(args.ss_json):
+            generate_default_searching_space_file(args.job_path+os.sep+args.ss_json)
     return args
+
+        
+#def get_argparse(automl=False, json_file_name=None):
+#    import argparse, json
+#    parser = argparse.ArgumentParser()
+#    # study setups
+#    parser.add_argument('--user_name', help="username", type=str, default = '')
+#    parser.add_argument('--study_name', help="name of study", type=str, default = '')
+#    parser.add_argument('--db_ip', help="db ip address", type=str, default = '150.183.247.244')
+#    parser.add_argument('--db_port', help="db port", type=str, default = '5432')
+#    parser.add_argument('--db_id', help="db id", type=str, default = 'postgres')
+#    parser.add_argument('--db_pass', help="db pass", type=str, default = 'postgres')
+#    parser.add_argument('--direction', help="study direction", type=str, default = 'maximize')
+#    parser.add_argument('--max_trials', help="maximum trials", type=int, default = 100000)
+#    parser.add_argument('--max_sec', help="maximul seconds(time)", type=int, default = 300)
+#    parser.add_argument('--ss_json', help='searching space file location', default ="searching_space_automl.json")
+#    # default params
+#    parser.add_argument("--seed", type=int, default=2020)
+#    ## error handling when jupyter call
+#    in_jupyter=False
+#    try:
+#        args = parser.parse_args()
+#    except:
+#        import easydict
+#        args = easydict.EasyDict({
+#            #"user_name":"",
+#            "ss_json":"searching_space_automl.json",
+#            "nb_name":"",
+#            "study_name":"",
+#            "job_directory":"",
+#            "metadata_json":"",
+#            "task_name":"",
+#            "algorithm_name":"",
+#            "env_name":"",
+#            "task_type":"gpu",
+#            "n_nodes":1,
+#            "max_sec":300,
+#            "seed":2020,
+#            "direction":"maximize",
+#            "greedy":False,
+#            "stepwise":False,
+#            "top_n_all":10,
+#            "top_n_each_algo":3
+#            #"db_ip":'150.183.247.244',
+#            #"db_port":'5432',
+#            #"db_id":"postgres",
+#            #"db_pass":"postgres",
+#            #"max_trials":100000
+#        })
+#        print("*Note that algorithm_name can be multiple. If multiple, write down the algorithms using comma. e.g., args.algorithm_name = 'lgb, xgboost, pytorch'")
+#        in_jupyter=True
+#        if json_file_name:
+#            automl=True
+#    if not os.path.exists(args.ss_json):
+#        if not in_jupyter:
+#            if json_file_name:
+#                with open(json_file_name) as data_file:
+#                    gui_params = json.load(data_file)
+#                #filepath=gui_params['ml_file_path']
+#                jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params)
+#                filename=os.path.basename(args.ss_json)
+#                location = jobpath+os.sep+filename
+#            else:
+#                location=args.ss_json
+#            generate_default_searching_space_file(location)
+#    if automl: # study_name, time_deadline_sec, ss_json_path, ss_json_name should be controlled by gui_params json.
+#        with open(json_file_name) as data_file:
+#            gui_params = json.load(data_file)
+#        if 'hpo_system_attr' in gui_params:
+#            #if ['study_name', 'time_deadline_sec', 'n_cpu', 'n_gpu'] == [each for each in gui_params['hpo_system_attr']]:
+#            if 'user_name' in gui_params['hpo_system_attr']:
+#                args.user_name = gui_params['hpo_system_attr']['user_name']
+#            if 'study_name' in gui_params['hpo_system_attr']:
+#                args.study_name = gui_params['hpo_system_attr']['study_name']
+#            if 'time_deadline_sec' in gui_params['hpo_system_attr']:
+#                args.max_sec = gui_params['hpo_system_attr']['time_deadline_sec']
+#            #if ('ss_json_path' in gui_params['hpo_system_attr']) and ('ss_json_name' in gui_params['hpo_system_attr']):
+#            #    searching_space_json = gui_params['hpo_system_attr']['ss_json_path'] + gui_params['hpo_system_attr']['ss_json_name']
+#            if 'searching_space' in gui_params['hpo_system_attr']:
+#                args.ss_json = gui_params['hpo_system_attr']['searching_space'] 
+#            if 'direction' in gui_params['hpo_system_attr']:
+#                args.direction=gui_params['hpo_system_attr']['direction']
+#                #print(args)
+#                # ncpu gpu will not be controlled in the python script
+#    return args
     
 def check_stepwise_available(json_file_name):
     import json
