@@ -364,7 +364,7 @@ class Job(object):
         #print(results)
         ####
     def _request_submit_job(self):
-        user_id, _, = get_user_id(debug=self.debug)
+        user_id, _ = get_user_id(debug=self.debug)
         data = {
           'screenName': user_id,
           'title': self.job_title,
@@ -385,7 +385,7 @@ class Job(object):
 
     def _run_slurm_script(self):
         if hasattr(self, 'job_id'):
-            user_id, _, _ = get_user_id(debug=self.debug)
+            user_id, _ = get_user_id(debug=self.debug)
             data = {
               'screenName': user_id,
               'location': self.job_path

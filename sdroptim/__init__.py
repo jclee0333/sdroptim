@@ -5,3 +5,4 @@ from sdroptim.PythonCodeModulator import from_gui_to_code, get_jobpath_with_attr
 from sdroptim.from_json_to_scripts import FullscriptsGenerator
 from sdroptim.hpo_job_submit import SubmitHPOjob, get_params, override_objfunc_with_newparams
 from sdroptim.hpo_job_submit import create_hpojob, load_hpojob
+from sdroptim.visualization import history_plot

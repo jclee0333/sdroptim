@@ -88,7 +88,7 @@ def get_jobpath_with_attr(gui_params=None, debug=False):
         gui_params = {'hpo_system_attr':{}} # set default 
     cwd=os.getcwd()
     uname, each = get_user_id(debug=debug) # each == user home( under workspace )
-    print("****", gui_params)
+    #print("****", gui_params)
     #########################################################################
     if debug:
         if not os.path.exists(cwd+os.sep+"workspace/"):
@@ -189,7 +189,7 @@ def get_batch_script(gui_params, debug=False):
     
     timed=datetime.timedelta(seconds=time_deadline_sec)
     n_days = timed.days
-    rest_seconds = timed.seconds + 300 # marginal seconds (5min)
+    rest_seconds = timed.seconds# + 300 # marginal seconds (5min)
     timed_without_days=datetime.timedelta(seconds=rest_seconds)
     rval=str(n_days)+"-"+str(timed_without_days)
     #
