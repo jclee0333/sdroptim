@@ -211,15 +211,11 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
             f.write(sh_scripts)
     ## JOB init @ portal // modified 0812 --> deprecated @ 0.1.1 -> used in register function
     job_init ="\n## JOB init @ portal\n"
-    job_init+="deJobId=$(curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job \\ "
-    #job_init+="-d userId="+str(gui_params['hpo_system_attr']['userId'])+" \\ "
-    #job_init+="-d groupId="+str(gui_params['hpo_system_attr']['groupId'])+" \\ "
-    #job_init+="-d companyId="+str(gui_params['hpo_system_attr']['companyId'])+" \\ "
-    job_init+="-d screenName="+uname+" \\ "
-    job_init+="-d title="+job_title+" \\ "
-    job_init+="-d targetType=82 \\ " # 82 = HPO job
-    job_init+="-d workspaceName="+wsname+" \\ "
-    #job_init+="-d status=TRAINING \\ "
+    job_init+="deJobId=$(curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job "
+    job_init+="-d screenName="+uname+" "
+    job_init+="-d title="+job_title+" "
+    job_init+="-d targetType=82 " # 82 = HPO job
+    job_init+="-d workspaceName="+wsname+" "
     job_init+="-d location="+jobpath+")\n\n"
     ##### mpirun command
     mpirun_command = "## mpirun command\n"
@@ -235,9 +231,8 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
     running_command = ("python ${JOBDIR}/"+job_title+"_generated"+".py") if types == "python" else ("/bin/bash ${JOBDIR}/"+job_title+"_running_with_custom_env.sh")
     ## JOB done @ portal
     job_done = "## JOB done @ portal\n"
-    job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status \\ "
+    job_done+= "curl https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-update-status "
     #if 'deJobId' in gui_params['hpo_system_attr']:
-    #    job_done+="-d deJobId="+str(gui_params['hpo_system_attr']['deJobId'])+" \\ "
     if dejob_id:
         job_done+="-d deJobId="+str(dejob_id)
     else:
