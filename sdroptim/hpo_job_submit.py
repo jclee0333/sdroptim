@@ -376,9 +376,7 @@ class Job(object):
             print(data)        
         response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/studio-submit-de-job', data=data)
         if response.status_code == 200:            
-            #self.job_id = response.json()
-            with open("job.id", "r") as f:
-                self.job_id = int(f.readline())
+            self.dejob_id = response.json()
             if self.debug:
                 print(self.job_id)            
         else:
@@ -386,7 +384,7 @@ class Job(object):
         return True
 
     def _run_slurm_script(self):
-        if hasattr(self, 'job_id'):
+        if hasattr(self, 'dejob_id'):
             user_id = get_user_id(debug=self.debug)
             #print(user_id)
             data = {
@@ -398,6 +396,8 @@ class Job(object):
             print("Running Slurm script...")
             response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-run', data=data)
             if response.status_code == 200:
+                with open(self.job_path+os.sep+"job.id", "r") as f:
+                    self.job_id = int(f.readline())
                 return True
         else:
             raise ValueError("Slurm Job Not Found.")            
@@ -478,10 +478,6 @@ class Job(object):
 
     def show_job_queue(self):
         stdout, stderr = self._execute_subprocess("squeue")
-        print(stdout)
-
-    def show_dir(self):
-        stdout, stderr = self._execute_subprocess("ls -alF")
         print(stdout)
 
     def _execute_subprocess(self, command):
