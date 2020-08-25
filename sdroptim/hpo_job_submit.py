@@ -47,7 +47,7 @@ def get_params(objective):
                 cate_items=target[cate_from_index:cate_to_index+1].replace('"',"").replace("'","")
                 cate_items=[x.strip().replace("'","") for x in cate_items[1:-1].split(',')]
                 d.update({target_name:{"choices":cate_items}})
-                print(cate_items)
+                #print(cate_items)
             else:
                 if 'suggest_int' in lines[i]:
                     d.update({target_name:{"low":int(targets[1]),"high":int(targets[2])}})
@@ -297,7 +297,7 @@ class Job(object):
         self.gui_params['hpo_system_attr'].update({'n_nodes':int(self.n_nodes)})
         self.gui_params['hpo_system_attr'].update({'n_tasks':int(self.n_tasks)})
         print("Note that currently the maximum n_nodes is 4 and each node has 32 CPU core and 2 GPU (nvidia P100).")
-        print("For example, 8 gpu tasks might be preocessed via 4 nodes (4 nodes * each 2 Gpu tasks). In this case, n_tasks is 8.")
+        print("(For example, 8 gpu tasks might be preocessed via 4 nodes (4 nodes * each 2 Gpu tasks). In this case, n_tasks is 8.)")
         print(str(self.n_nodes)+" nodes are preparing for this job ...")
         print(str(self.n_tasks)+" tasks are evenly distributed to each node.")
         print("This job will be terminated within "+str(self.max_sec)+" (sec) after beginning the job.")
@@ -426,7 +426,7 @@ class Job(object):
             user_id = get_user_id(debug=self.debug)
             data = {
               'jobId': self.job_id,
-              'screenName': self.user_id[0]
+              'screenName': user_id[0]
             }
             response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-cancel', data=data)    
             print("Stop a Requested Job on the Portal.")
