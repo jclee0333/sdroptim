@@ -194,7 +194,7 @@ class Job(object):
                  study_name=None,
                  workspace_name=None,
                  job_directory=None,
-                 env_name=None,
+                 env_name="my-rdkit-env",#env_name=None,
                  task_name="unknown_task",
                  algorithm="unknown_algo",
                  gui_params=None,
@@ -398,6 +398,7 @@ class Job(object):
             if response.status_code == 200:
                 with open(self.job_path+os.sep+"job.id", "r") as f:
                     self.job_id = int(f.readline())
+                print("The job_id is "+str(self.job_id))
                 return True
         else:
             raise ValueError("Slurm Job Not Found.")            
@@ -465,7 +466,7 @@ class Job(object):
             print("** print std."+each)
             with open(self.job_path+os.sep+'std.'+each) as f:
                 temp=f.readlines()
-            print(temp)
+            print("".join(temp))
             print("\n")
 
     def show_job_status(self):

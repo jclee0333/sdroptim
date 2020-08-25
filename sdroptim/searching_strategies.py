@@ -5,10 +5,62 @@
 
 
 import os,sys, copy, random
-from optuna.study import StudyDirection
+
 from mpi4py import MPI
 import optuna
 ######################################
+def get_jobpath_with_attr(gui_params=None, debug=False):
+    if not gui_params:
+        gui_params = {'hpo_system_attr':{}} # set default 
+    cwd=os.getcwd()
+    uname, each = get_user_id(debug=debug) # each == user home( under workspace )
+    #########################################################################
+    if debug:
+        if not os.path.exists(cwd+os.sep+"workspace/"):
+            os.mkdir(cwd+os.sep+"workspace/")
+        if not os.path.exists(cwd+os.sep+"workspace/default_ws/"):
+            os.mkdir(cwd+os.sep+"workspace/default_ws/")
+        if not os.path.exists(cwd+os.sep+"workspace/default_ws/job/"):
+            os.mkdir(cwd+os.sep+"workspace/default_ws/job/")
+        
+        if 'job_directory' in gui_params['hpo_system_attr']:
+            job_directory=gui_params['hpo_system_attr']['job_directory'] # directory name
+            jobpath = cwd+os.sep+"workspace/default_ws/job/"+job_directory
+        else: # if it is first try -> generate it
+            timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+            job_directory = "job-"+timenow
+            jobpath = cwd+os.sep+"workspace/default_ws/job/job-"+timenow
+        if not os.path.exists(jobpath):
+            os.mkdir(jobpath)
+        sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())        
+        job_title = sname+"_in_"+uname
+        wsname = "default_ws"
+        return jobpath, (uname, sname, job_title, wsname, job_directory)
+    ########################################################################        
+    # otherwise, use 'user_name' in the params
+    if 'user_name' in gui_params['hpo_system_attr']:
+        uname=gui_params['hpo_system_attr']['user_name'] 
+    sname=gui_params['hpo_system_attr']['study_name'] if 'study_name' in gui_params['hpo_system_attr'] else str(uuid.uuid4())
+    job_title=sname+"_in_"+uname
+    ##########################
+    if 'workspace_name' in gui_params['hpo_system_attr']:
+        wsname=gui_params['hpo_system_attr']['workspace_name'] # directory name (MANDATORY)    
+    else:
+        wsname=cwd.split('/workspace/')[1].split('/')[0]
+    ###########################
+    if 'job_directory' in gui_params['hpo_system_attr']:
+        job_directory=gui_params['hpo_system_attr']['job_directory'] # directory name
+    else:
+        timenow = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        job_directory="job-"+timenow
+    if not os.path.exists(each+uname+'/workspace/'+str(wsname)+'/job/'):
+        os.mkdir(each+uname+'/workspace/'+str(wsname)+'/job/')
+    jobpath = each+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)
+    if not os.path.exists(jobpath):
+        os.mkdir(jobpath)
+    return jobpath, (uname, sname, job_title, wsname, job_directory)
+
+    
 class ModObjectiveFunctionWrapper(object):
     def __init__(self, objective_function, params): 
         self.params = params
@@ -378,7 +430,7 @@ def get_argparse(automl=False, json_file_name=None):
                 with open(json_file_name) as data_file:
                     gui_params = json.load(data_file)
                 #filepath=gui_params['ml_file_path']
-                jobpath, (uname, sname, job_title, wsname, job_directory) = sdroptim.get_jobpath_with_attr(gui_params)
+                jobpath, (uname, sname, job_title, wsname, job_directory) = get_jobpath_with_attr(gui_params)
                 filename=os.path.basename(args.ss_json)
                 location = jobpath+os.sep+filename
             else:
