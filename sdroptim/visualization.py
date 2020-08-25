@@ -1,5 +1,5 @@
 import plotly.graph_objects as go
-import plotly.offline.plot as offplot
+from plotly.offline import plot as offplot
 import numpy as np
 import optuna, base64, json, argparse
 
@@ -66,17 +66,28 @@ def get_study_df(json_file_name):
         s = optuna.create_study(load_if_exists=True, study_name=study_name, storage=url, direction=direction)
     return s.trials_dataframe(), study_name, direction
 
-def get_chart(json_file_name):
-    df, study_name, direction = get_study_df(json_file_name)
-    figure = history_plot(df, study_name, direction)
-    return figure
 
-def get_chart_html(json_file_name, outputfile_name='cum_chart.html'):
-    figure = get_chart(json_file_name)
-    offplot(figure, filename = outputfile_name, auto_open=False)
+def get_chart_html(args, with_df_csv=False):
+    df, study_name, direction = get_study_df(args.json_file_name)
+    figure = history_plot(df, study_name, direction)
+    if not args.outfile_name:
+        args.outfile_name = study_name+"_df.csv"
+    if with_df_csv:
+        df.to_csv(args.outfile_name)
+    offplot(figure, filename = args.outhtml_name, auto_open=False)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--json_file_name', help="json_file_name", type=str, default = '') # json_file_name
+    parser.add_argument('--outfile_name', help="output filename", type=str)
+    parser.add_argument('--outhtml_name', help="output htmlname", type=str, default='cum_chart.html')
     args = parser.parse_args()
-    get_chart_html(args.json_file_name)
+    import easydict
+    args = easydict.EasyDict({
+            #"user_name":"",
+            "json_file_name":"metadata.json",
+            "outfile_name":"",
+            "outhtml_name":"cum_chart.html"
+    })
+    get_chart_html(args, with_df_csv=True)
