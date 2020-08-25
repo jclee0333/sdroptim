@@ -323,9 +323,13 @@ class Job(object):
         if self.debug:
             copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='copy')
         else:
-            copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
+            #copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=self.job_path, by='symlink')
+            user_id = get_user_id(debug=self.debug)
+            __ = self.job_path.split(user_id[0])
+            dest_in_singularity_image = "/home/"+user_id[0]+__[1]
+            copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=dest_in_singularity_image, by='symlink')
         if copied:
-            print("Symlinks are generated in "+str(self.job_path))
+            print("Symlinks are generated in "+str(dest_in_singularity_image))
         gen_py_pathname = save_this_nb_to_py(dest_dir=self.job_path)
         if gen_py_pathname:
             print("This notebook has been copied as a python file(.py) successively.")
@@ -413,9 +417,10 @@ class Job(object):
 
     def _request_to_portal_stop_job(self):
         if hasattr(self, 'job_id'):
+            user_id = get_user_id(debug=self.debug)
             data = {
               'jobId': self.job_id,
-              'screenName': self.user_id
+              'screenName': self.user_id[0]
             }
             response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-cancel', data=data)    
             print("Stop a Requested Job on the Portal.")
