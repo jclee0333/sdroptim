@@ -364,9 +364,9 @@ class Job(object):
         #print(results)
         ####
     def _request_submit_job(self):
-        user_id, _ = get_user_id(debug=self.debug)
+        user_id = get_user_id(debug=self.debug)
         data = {
-          'screenName': user_id,
+          'screenName': user_id[0],
           'title': self.job_title,
           'targetType': '82', # 82= HPO Job
           'workspaceName': self.workspace_name,
@@ -385,9 +385,9 @@ class Job(object):
 
     def _run_slurm_script(self):
         if hasattr(self, 'job_id'):
-            user_id, _ = get_user_id(debug=self.debug)
+            user_id = get_user_id(debug=self.debug)
             data = {
-              'screenName': user_id,
+              'screenName': user_id[0],
               'location': self.job_path
             }
             if self.debug:
