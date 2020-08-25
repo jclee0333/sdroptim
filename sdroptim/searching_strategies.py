@@ -9,6 +9,34 @@ import os,sys, copy, random
 from mpi4py import MPI
 import optuna
 ######################################
+def get_user_id(debug=False):
+    user_home1 = str(base64.b64decode(b'L0VESVNPTi9TQ0lEQVRBL3Nkci9kcmFmdC8='))[2:-1]
+    user_home2 = str(base64.b64decode(b'L3NjaWVuY2UtZGF0YS9zZHIvZHJhZnQv'))[2:-1]
+    user_homes = [user_home1, user_home2]
+    cwd=os.getcwd()
+    if debug:
+        uname = cwd.split(os.sep)[-1]
+        each = cwd
+        return uname, each
+    #
+    each = ""
+    uname = ""
+    cannot_find=False
+    for each in user_homes:
+        if cwd.startswith(each):
+            try:
+                uname = cwd.split(each)[1].split('/')[0]
+                return uname, each
+            except:
+                cannot_find=True
+                in_user_home_list=True
+        else:
+            cannot_find=True
+            in_user_home_list=False
+    if cannot_find:         
+        raise ValueError(("The current user directory cannot be founded in the pre-defined userhome list. " if in_user_home_list else "")+
+            "Failed to find user_id, please check the current user directory.")
+            
 def get_jobpath_with_attr(gui_params=None, debug=False):
     if not gui_params:
         gui_params = {'hpo_system_attr':{}} # set default 
@@ -60,7 +88,7 @@ def get_jobpath_with_attr(gui_params=None, debug=False):
         os.mkdir(jobpath)
     return jobpath, (uname, sname, job_title, wsname, job_directory)
 
-    
+
 class ModObjectiveFunctionWrapper(object):
     def __init__(self, objective_function, params): 
         self.params = params
