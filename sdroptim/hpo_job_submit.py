@@ -640,7 +640,7 @@ def copy_all_files_to_jobpath(cur_dir, dest_dir, by='symlink'):
                 raise ValueError("Symlinks cannot be generated.")
     elif by == 'copy':
         try:
-            #copytree(cur_dir, dest_dir)
+            copytree(cur_dir, dest_dir)
             return True
         except:
             raise ValueError("Files cannot be copied.")
