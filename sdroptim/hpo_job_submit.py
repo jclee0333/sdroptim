@@ -330,7 +330,8 @@ class Job(object):
             #dest_in_singularity_image = "/home/"+user_id[0]+__[1]
             #copied = copy_all_files_to_jobpath(cur_dir=os.getcwd(), dest_dir=dest_in_singularity_image, by='symlink')
         if copied:
-            print("Symlinks are generated in "+str(dest_in_singularity_image))
+            #print("Symlinks are generated in "+str(dest_in_singularity_image))
+            print("Files are copied to the current job directory")
         gen_py_pathname = save_this_nb_to_py(dest_dir=self.job_path)
         if gen_py_pathname:
             print("This notebook has been copied as a python file(.py) successively.")
