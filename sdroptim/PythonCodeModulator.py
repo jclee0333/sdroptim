@@ -182,8 +182,8 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
     prefix+='#SBATCH --output=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.out\n'
     prefix+='#SBATCH --error=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.err\n'
     prefix+='#SBATCH --nodes='+str(n_nodes)+'\n'
-    prefix+='#SBATCH --n_tasks='+str(n_tasks)+'\n'
-    prefix+='#SBATCH --n_tasks-per-node='+str(int(n_tasks/n_nodes))+'\n'
+    prefix+='#SBATCH --ntasks='+str(n_tasks)+'\n'
+    prefix+='#SBATCH --ntasks-per-node='+str(int(n_tasks/n_nodes))+'\n'
     #prefix+='#SBATCH --gres=gpu:'+str(n_gpu)+'\n'
     
     timed=datetime.timedelta(seconds=time_deadline_sec)
