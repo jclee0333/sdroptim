@@ -173,7 +173,7 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
     if len(gpuhas)>0:
         gpu_task = 2
     n_nodes = gui_params['hpo_system_attr']['n_nodes']
-    ntasks = n_nodes*cpu_task*gpu_task # ntasks calculation for GUI-hpo
+    n_tasks = n_nodes*cpu_task*gpu_task # n_tasks calculation for GUI-hpo
     if 'n_tasks' in gui_params['hpo_system_attr']: # n_tasks for jupyter-hpo
         n_tasks = gui_params['hpo_system_attr']['n_tasks']
     #
@@ -182,8 +182,8 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
     prefix+='#SBATCH --output=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.out\n'
     prefix+='#SBATCH --error=/EDISON/SCIDATA/sdr/draft/'+uname+'/workspace/'+str(wsname)+'/job/'+str(job_directory)+'/std.err\n'
     prefix+='#SBATCH --nodes='+str(n_nodes)+'\n'
-    prefix+='#SBATCH --ntasks='+str(ntasks)+'\n'
-    prefix+='#SBATCH --ntasks-per-node='+str(int(ntasks/n_nodes))+'\n'
+    prefix+='#SBATCH --n_tasks='+str(n_tasks)+'\n'
+    prefix+='#SBATCH --n_tasks-per-node='+str(int(n_tasks/n_nodes))+'\n'
     #prefix+='#SBATCH --gres=gpu:'+str(n_gpu)+'\n'
     
     timed=datetime.timedelta(seconds=time_deadline_sec)
@@ -219,7 +219,7 @@ def get_batch_script(gui_params, debug=False, dejob_id=""):
     job_init+="-d location="+jobpath+")\n\n"
     ##### mpirun command
     mpirun_command = "## mpirun command\n"
-    mpirun_command+= "/usr/local/bin/mpirun -np " + str(ntasks)
+    mpirun_command+= "/usr/local/bin/mpirun -np " + str(n_tasks)
     mpirun_options = "-x PATH -x HOROVOD_MPI_THREADS_DISABLE=1 -x NCCL_SOCKET_IFNAME=^docker0,lo -mca btl_tcp_if_exclude lo,docker0  -mca pml ob1"
     ##### singularity command
     singularity_command = "singularity exec --nv"
