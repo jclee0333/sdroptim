@@ -406,8 +406,13 @@ class Job(object):
             print("Running Slurm script...")
             response = requests.post('https://sdr.edison.re.kr:8443/api/jsonws/SDR_base-portlet.dejob/slurm-de-job-run', data=data)
             if response.status_code == 200:
-                with open(self.job_path+os.sep+"job.id", "r") as f:
-                    self.job_id = int(f.readline())
+                while True: # waiting for file io
+                    try:
+                        with open(self.job_path+os.sep+"job.id", "r") as f:
+                            self.job_id = int(f.readline())
+                        break
+                    except:
+                        pass
                 print("The job_id is "+str(self.job_id))
                 return True
         else:
