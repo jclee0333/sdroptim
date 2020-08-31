@@ -1479,37 +1479,3 @@ def do_optimize_test(n_trials):
     study = uncertainty_reduction_ver7(study, params, n_trials)
     study.trials_dataframe().to_csv('out.csv')
     return study
-
-if __name__ == "__main__":
-    study = do_optimize_test(n_trials=100)
-    #study_name = 'pytorch_asha_mnist-with-sampler_mod0423-ver1'
-    ##sampler=optuna.integration.CmaEsSampler(warn_independent_sampling=False)
-    ##pruner=optuna.pruners.SuccessiveHalvingPruner()
-    #n_trials=50
-    #direction='maximize'
-    #study = optuna.create_study(study_name=study_name, direction=direction,load_if_exists=True)#, pruner=pruner)
-    #mod_objective = ModObjectiveFunctionWrapper(objective, params)
-    ##study.pruner=optuna.pruners.SuccessiveHalvingPruner()
-    ##study.optimize(mod_objective, n_trials)
-    ##
-    #study = uncertainty_reduction_ver7(study, params, n_trials)
-    #study.trials_dataframe().to_csv('out.csv')
-##
-#importance_ranked_list, score = do_score_rf_modeling(study, params)
-##
-#print(importance_ranked_list)
-##
-#already_reduced_params_list = []
-#for each_param in importance_ranked_list: # ordered_reduction
-#    reduction_check_token=copy.deepcopy(already_reduced_params_list)
-#    #print("RC",reduction_check_token)
-#    mod_params, already_reduced_params_list = reduction_param_space(params,each_param, sorted_df, already_reduced_params_list)
-#    if reduction_check_token == already_reduced_params_list: # in case of no change
-#        pass
-#    else:
-#        print("reduced param list: ", already_reduced_params_list)
-#        mod_objective = ModObjectiveFunctionWrapper(objective, mod_params)
-#        study.optimize(mod_objective, trial_numbers)
-#
-#study.trials_dataframe().to_csv('out.csv')
-
