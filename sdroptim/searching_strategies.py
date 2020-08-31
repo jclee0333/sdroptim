@@ -2,8 +2,6 @@
   Searching Strategies for Hyper Parameter Optimization by Jeongcheol lee
   -- jclee@kisti.re.kr
 """
-
-
 import os,sys, copy, random
 
 from mpi4py import MPI
