@@ -30,18 +30,21 @@ def retrieve_model(algorithm_name, model, trial_number, score, top_n_all = 10, t
     output_model_path = "output_models/"
     if not os.path.exists(output_model_path):
         os.mkdir(output_model_path)
+        os.chmod(jobpath, 0o770) # add permission 201030
     ##
     algorithm_path = output_model_path + algorithm_name+ "/"
     if not os.path.exists(algorithm_path):
         os.mkdir(algorithm_path)
+        os.chmod(jobpath, 0o770) # add permission 201030
     ##
     top_n_path = output_model_path + "top_"+str(top_n_all)+"/"
     if not os.path.exists(top_n_path):
         os.mkdir(top_n_path)
+        os.chmod(jobpath, 0o770) # add permission 201030
     ##
     ##
     file_prefix = str(trial_number)+"__"+algorithm_name+"__"+str(score)
-    extension = ".pt" if algorithm_name == 'DL_Pytorch' else ".pkl"
+    extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
     #    
     compare_and_search(target_path=algorithm_path, top_n=top_n_each_algo, specific_extension=extension, \
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
@@ -90,7 +93,7 @@ def compare_and_search(target_path, top_n, specific_extension, algorithm_name, f
 
 def savemodel(algorithm_name, model, file_prefix):
     # add first
-    extension = ".pt" if algorithm_name == 'DL_Pytorch' else ".pkl"
+    extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
     if algorithm_name == 'DL_Pytorch':
         import torch
         torch.save(model, file_prefix+extension)
@@ -360,7 +363,8 @@ def get_argparse(automl=False, json_file_name=None):
                 args.ss_json = gui_params['hpo_system_attr']['searching_space'] 
             if 'direction' in gui_params['hpo_system_attr']:
                 args.direction=gui_params['hpo_system_attr']['direction']
-                #print(args)
+            if 'seed' in gui_params['hpo_system_attr']:
+                args.seed=gui_params['hpo_system_attr']['seed']
                 # ncpu gpu will not be controlled in the python script
         if not os.path.exists(args.ss_json):
             generate_default_searching_space_file(args.job_path+os.sep+args.ss_json)
