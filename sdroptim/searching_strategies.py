@@ -22,41 +22,82 @@ class ModObjectiveFunctionWrapper(object):
             raise optuna.exceptions.TrialPruned()
 
 ### save module added @ 20200812
-
-def retrieve_model(algorithm_name, model, trial_number, score, top_n_all = 10, top_n_each_algo = 3, direction='maximize'):
+#retrieve_model('SVM', clf, trial.number,[predicted, test_data[features]], metric='r2')
+def retrieve_model(algorithm_name, model, trial_number, score, metric = 'r2', label_names = None, top_n_all = 10, top_n_each_algo = 3, direction='maximize',\
+                   ): # if classification, one can generates confusion matrix png with a specific label_names = ['apple', 'banana', 'mango']
     ''' top_n_all and top_n_each_algo are at least >= 1'''
+    ''' 'score' can be the score as well as the dataframe consisting of predicted values and original values ;; [y_pred, y_true]'''
+    ''' if the dataframe cases, both a model and a performance figure file will be generated, respectively.'''
+    ##############################
+    import numpy as np
+    make_png = False
+    vs=None
+    try:
+        fscore=float(score)
+        val = len(score)
+        if val==1:
+            score = score[0] # [123]--> 123
+    except:
+        # if it is not float, int data types --> for using predicted values and original values
+        vs = score
+        try:
+            vs[0] = vs[0].values # y_pred
+        except:
+            pass
+        try:
+            vs[1] = vs[1].values # y_true
+        except:
+            pass
+        try:
+            vs[0] = np.array(vs[0])
+            vs[1] = np.array(vs[1])
+        except:
+            pass
+        if metric == 'r2':
+            from sklearn.metrics import r2_score
+            score = r2_score(vs[0], vs[1])
+            make_png = True
+        elif metric == 'f1':
+            from sklearn.metrics import f1_score
+            score = f1_score(vs[0], vs[1])
+            make_png = True
+    #
     import os, glob
     ##
     output_model_path = "output_models/"
     if not os.path.exists(output_model_path):
         os.mkdir(output_model_path)
-        os.chmod(jobpath, 0o770) # add permission 201030
+        os.chmod(output_model_path, 0o770) # add permission 201030
     ##
     algorithm_path = output_model_path + algorithm_name+ "/"
     if not os.path.exists(algorithm_path):
         os.mkdir(algorithm_path)
-        os.chmod(jobpath, 0o770) # add permission 201030
+        os.chmod(algorithm_path, 0o770) # add permission 201030
     ##
     top_n_path = output_model_path + "top_"+str(top_n_all)+"/"
     if not os.path.exists(top_n_path):
         os.mkdir(top_n_path)
-        os.chmod(jobpath, 0o770) # add permission 201030
+        os.chmod(top_n_path, 0o770) # add permission 201030
     ##
     ##
     file_prefix = str(trial_number)+"__"+algorithm_name+"__"+str(score)
     extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
-    #    
+    #
+    ############################################################################
     compare_and_search(target_path=algorithm_path, top_n=top_n_each_algo, specific_extension=extension, \
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
-        trial_number=trial_number, score=score, direction=direction)
+        trial_number=trial_number, score=score, direction=direction,                                    \
+        make_png=make_png, vs=vs, metric=metric, label_names=label_names)
 
     compare_and_search(target_path=top_n_path, top_n=top_n_all, specific_extension=None,                \
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
-        trial_number=trial_number, score=score, direction=direction)
+        trial_number=trial_number, score=score, direction=direction,                                    \
+        make_png=make_png, vs=vs, metric=metric, label_names=label_names)
 
     ######### part 1 remaining top_n_each_algo
 
-def compare_and_search(target_path, top_n, specific_extension, algorithm_name, file_prefix, model, trial_number, score, direction):
+def compare_and_search(target_path, top_n, specific_extension, algorithm_name, file_prefix, model, trial_number, score, direction,
+                        make_png=False, vs=None, metric=None, label_names=None):
     import glob, os
     if specific_extension is None:
         extension = ""
@@ -76,24 +117,92 @@ def compare_and_search(target_path, top_n, specific_extension, algorithm_name, f
         if should_be_remove_num>0:
             for i in range(0,should_be_remove_num):
                 target_file_name = y_hat[i][0]
-                os.remove(target_file_name)
+                #os.remove(target_file_name) --> remove_model_and_others(target_file_name) # 20201030
+                remove_model_and_others(target_file_name)
         target_file_name = y_hat[i+1][0]
         bad_score = y_hat[i+1][1]
         ## comparing
         if direction == 'maximize':
             if score > bad_score: # for better current score, replace it
-                os.remove(target_file_name)
-                savemodel(algorithm_name, model, target_path+file_prefix)
+                #os.remove(target_file_name) --> remove_model_and_others(target_file_name) # 20201030
+                remove_model_and_others(target_file_name)
+                savemodel(algorithm_name, model, target_path+file_prefix, make_png, vs, metric, label_names)
         elif direction == 'minimize':
             if score < bad_score: # for better current score, replace it
-                os.remove(target_file_name)
-                savemodel(algorithm_name, model, target_path+file_prefix)
+                #os.remove(target_file_name) --> remove_model_and_others(target_file_name) # 20201030
+                remove_model_and_others(target_file_name)
+                savemodel(algorithm_name, model, target_path+file_prefix, make_png, vs, metric, label_names)
     else:
-        savemodel(algorithm_name, model, target_path+file_prefix)
+        savemodel(algorithm_name, model, target_path+file_prefix, make_png, vs, metric, label_names)
 
-def savemodel(algorithm_name, model, file_prefix):
+def remove_model_and_others(target_model_name):
+    import glob,os
+    for_delete = glob.glob(os.path.splitext(target_model_name)[0]+".*")
+    for each in for_delete:
+        os.remove(each)
+
+def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_names):
     # add first
     extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
+    ## make_png
+    if make_png:
+        if metric == 'r2':  #regression
+            vsplot, ax = plt.subplots(1, 1, figsize=(12,12))
+            ax.scatter(x = vs[0], y = vs[1], color='c', edgecolors=(0, 0, 0))
+            ax.plot([vs[1].min(), vs[1].max()], [vs[1].min(), vs[1].max()], 'k--', lw=4)
+            ax.set_xlabel('Predicted')
+            ax.set_ylabel('Actual')
+            plt.savefig(file_prefix+'.png', dpi=300)
+        elif metric == 'f1':#classification
+            ######################## for classification
+            ##* Confusion Matrix
+            ## https://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
+            import itertools
+            from sklearn.metrics import confusion_matrix
+            def plot_confusion_matrix(cm, classes,
+                                      normalize=False,
+                                      title='Confusion matrix',
+                                      cmap=plt.cm.Blues):
+                """
+                This function prints and plots the confusion matrix.
+                Normalization can be applied by setting `normalize=True`.
+                """
+                if normalize:
+                    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                    print("Normalized confusion matrix")
+                else:
+                    print('Confusion matrix, without normalization')
+                print(cm)
+                plt.imshow(cm, interpolation='nearest', cmap=cmap)
+                plt.title(title)
+                plt.colorbar()
+                tick_marks = np.arange(len(classes))
+                plt.xticks(tick_marks, classes, rotation=45)
+                plt.yticks(tick_marks, classes)
+                fmt = '.2f' if normalize else 'd'
+                thresh = cm.max() / 2.
+                for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+                    plt.text(j, i, format(cm[i, j], fmt),
+                             horizontalalignment="center",
+                             color="white" if cm[i, j] > thresh else "black")
+                plt.ylabel('True label')
+                plt.xlabel('Predicted label')
+                plt.tight_layout()
+            ## Compute confusion matrix
+            cnf_matrix = confusion_matrix(vs[1], vs[0])
+            np.set_printoptions(precision=2)
+            ######################## for classification
+            ##* Plot non-normalized confusion matrix
+            plt.figure()
+            if not label_names:
+                from sklearn.preprocessing import LabelEncoder
+                import numpy as np
+                class_le = LabelEncoder()
+                class_le = class_le.fit(np.append(vs[0],vs[1]))
+                label_names = class_le.classes_
+            plot_confusion_matrix(cnf_matrix, classes=label_names,title='Confusion matrix, without normalization')
+            plt.savefig(file_prefix+'.png', dpi=300)
+    ## model save
     if algorithm_name == 'DL_Pytorch':
         import torch
         torch.save(model, file_prefix+extension)
