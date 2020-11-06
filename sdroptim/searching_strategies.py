@@ -23,7 +23,7 @@ class ModObjectiveFunctionWrapper(object):
 
 ### save module added @ 20200812
 #retrieve_model('SVM', clf, trial.number,[predicted, test_data[features]], metric='r2')
-def retrieve_model(algorithm_name, model, trial_number, score, metric = 'r2', label_names = None, top_n_all = 10, top_n_each_algo = 3, direction='maximize',\
+def retrieve_model(algorithm_name, model, trial_number, score, metric = None, label_names = None, top_n_all = 10, top_n_each_algo = 3, direction='maximize',\
                    ): # if classification, one can generates confusion matrix png with a specific label_names = ['apple', 'banana', 'mango']
     ''' top_n_all and top_n_each_algo are at least >= 1'''
     ''' 'score' can be the score as well as the dataframe consisting of predicted values and original values ;; [y_pred, y_true]'''
@@ -32,13 +32,37 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = 'r2', la
     import numpy as np
     make_png = False
     vs=None
-    try:
-        fscore=float(score)
-        val = len(score)
-        if val==1:
-            score = score[0] # [123]--> 123
-    except:
-        # if it is not float, int data types --> for using predicted values and original values
+#    try:
+#        fscore=float(score)
+#        val = len(score)
+#        if val==1:
+#            score = score[0] # [123]--> 123
+#    except:
+#        # if it is not float, int data types --> for using predicted values and original values
+#        vs = score
+#        try:
+#            vs[0] = vs[0].values # y_pred
+#        except:
+#            pass
+#        try:
+#            vs[1] = vs[1].values # y_true
+#        except:
+#            pass
+#        try:
+#            vs[0] = np.array(vs[0])
+#            vs[1] = np.array(vs[1])
+#        except:
+#            pass
+#        if metric == 'r2':
+#            from sklearn.metrics import r2_score
+#            score = r2_score(vs[0], vs[1])
+#            make_png = True
+#        elif metric == 'f1':
+#            from sklearn.metrics import f1_score
+#            score = f1_score(vs[0], vs[1])
+#            make_png = True
+#    #
+    if metric:
         vs = score
         try:
             vs[0] = vs[0].values # y_pred
@@ -52,16 +76,16 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = 'r2', la
             vs[0] = np.array(vs[0])
             vs[1] = np.array(vs[1])
         except:
-            pass
+            pass 
+        y_pred=vs[0]
+        y_true=vs[1]
+        make_png = True
         if metric == 'r2':
             from sklearn.metrics import r2_score
-            score = r2_score(vs[0], vs[1])
-            make_png = True
+            score = r2_score(y_pred, y_true)
         elif metric == 'f1':
             from sklearn.metrics import f1_score
-            score = f1_score(vs[0], vs[1])
-            make_png = True
-    #
+            score = f1_score(y_pred, y_true)
     import os, glob
     ##
     output_model_path = "output_models/"
