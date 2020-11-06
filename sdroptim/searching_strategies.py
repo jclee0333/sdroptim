@@ -76,7 +76,7 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
             vs[0] = np.array(vs[0])
             vs[1] = np.array(vs[1])
         except:
-            pass 
+            pass
         y_pred=vs[0]
         y_true=vs[1]
         make_png = True
