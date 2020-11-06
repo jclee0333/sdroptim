@@ -142,6 +142,9 @@ def remove_model_and_others(target_model_name):
         os.remove(each)
 
 def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_names):
+    import matplotlib
+    import matplotlib.pyplot as plt
+    matplotlib.use('Agg')
     # add first
     extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
     ## make_png
