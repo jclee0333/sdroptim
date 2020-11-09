@@ -91,17 +91,17 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
     output_model_path = "output_models/"
     if not os.path.exists(output_model_path):
         os.mkdir(output_model_path)
-        os.chmod(output_model_path, 0o770) # add permission 201030
+        os.chmod(output_model_path, 0o776) # add permission 201030
     ##
     algorithm_path = output_model_path + algorithm_name+ "/"
     if not os.path.exists(algorithm_path):
         os.mkdir(algorithm_path)
-        os.chmod(algorithm_path, 0o770) # add permission 201030
+        os.chmod(algorithm_path, 0o776) # add permission 201030
     ##
     top_n_path = output_model_path + "top_"+str(top_n_all)+"/"
     if not os.path.exists(top_n_path):
         os.mkdir(top_n_path)
-        os.chmod(top_n_path, 0o770) # add permission 201030
+        os.chmod(top_n_path, 0o776) # add permission 201030
     ##
     ##
     file_prefix = str(trial_number)+"__"+algorithm_name+"__"+str(score)
