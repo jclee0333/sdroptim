@@ -85,7 +85,7 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
             score = r2_score(y_pred, y_true)
         elif metric == 'f1':
             from sklearn.metrics import f1_score
-            score = f1_score(y_pred, y_true)
+            score = f1_score(y_pred, y_true, average='macro')
     import os, glob
     ##
     output_model_path = "output_models/"
@@ -168,6 +168,7 @@ def remove_model_and_others(target_model_name):
 def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_names):
     import matplotlib
     import matplotlib.pyplot as plt
+    import numpy as np
     matplotlib.use('Agg')
     # add first
     extension = ".pth" if algorithm_name == 'DL_Pytorch' else ".pkl"
