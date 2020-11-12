@@ -222,7 +222,7 @@ def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_na
             ######################## for classification
             ##* Plot non-normalized confusion matrix
             plt.figure()
-            if not label_names:
+            if label_names is None:
                 from sklearn.preprocessing import LabelEncoder
                 import numpy as np
                 class_le = LabelEncoder()
