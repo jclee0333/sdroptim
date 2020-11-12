@@ -32,36 +32,6 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
     import numpy as np
     make_png = False
     vs=None
-#    try:
-#        fscore=float(score)
-#        val = len(score)
-#        if val==1:
-#            score = score[0] # [123]--> 123
-#    except:
-#        # if it is not float, int data types --> for using predicted values and original values
-#        vs = score
-#        try:
-#            vs[0] = vs[0].values # y_pred
-#        except:
-#            pass
-#        try:
-#            vs[1] = vs[1].values # y_true
-#        except:
-#            pass
-#        try:
-#            vs[0] = np.array(vs[0])
-#            vs[1] = np.array(vs[1])
-#        except:
-#            pass
-#        if metric == 'r2':
-#            from sklearn.metrics import r2_score
-#            score = r2_score(vs[0], vs[1])
-#            make_png = True
-#        elif metric == 'f1':
-#            from sklearn.metrics import f1_score
-#            score = f1_score(vs[0], vs[1])
-#            make_png = True
-#    #
     if metric:
         vs = score
         try:
@@ -85,7 +55,10 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
             score = r2_score(y_pred, y_true)
         elif metric == 'f1':
             from sklearn.metrics import f1_score
-            score = f1_score(y_pred, y_true, average='macro')
+            try:
+                score = f1_score(y_pred, y_true, average='macro')
+            except:                
+                score = f1_score(np.vstack(y_pred), np.vstack(y_true), average='macro')    
     import os, glob
     ##
     output_model_path = "output_models/"
