@@ -57,8 +57,12 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
             from sklearn.metrics import f1_score
             try:
                 score = f1_score(y_pred, y_true, average='macro')
-            except:                
-                score = f1_score(np.vstack(y_pred), np.vstack(y_true), average='macro')    
+            except:
+                y_pred = np.vstack(y_pred)
+                y_true = np.vstack(y_true)
+                vs[0] = y_pred
+                vs[1] = y_true
+                score = f1_score(y_pred, y_true, average='macro')
     import os, glob
     ##
     output_model_path = "output_models/"
@@ -85,7 +89,7 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
         trial_number=trial_number, score=score, direction=direction,                                    \
         make_png=make_png, vs=vs, metric=metric, label_names=label_names)
-
+    #
     compare_and_search(target_path=top_n_path, top_n=top_n_all, specific_extension=None,                \
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
         trial_number=trial_number, score=score, direction=direction,                                    \
@@ -154,6 +158,7 @@ def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_na
             ax.set_xlabel('Predicted')
             ax.set_ylabel('Actual')
             plt.savefig(file_prefix+'.png', dpi=300)
+            plt.close('all')
         elif metric == 'f1':#classification
             ######################## for classification
             ##* Confusion Matrix
@@ -203,6 +208,7 @@ def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_na
                 label_names = class_le.classes_
             plot_confusion_matrix(cnf_matrix, classes=label_names,title='Confusion matrix, without normalization')
             plt.savefig(file_prefix+'.png', dpi=300)
+            plt.close('all')
     ## model save
     if algorithm_name == 'DL_Pytorch':
         import torch
