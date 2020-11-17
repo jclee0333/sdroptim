@@ -743,6 +743,15 @@ def n_iter_calculation_old(n_total_trials, n_search_dim, current_step, strategy=
 
 #20200604 modified -> equal 메카니즘 half and the rest 로 변경
 def n_iter_calculation(n_total_trials, n_search_dim, current_step, strategy="exp", warning=True):
+    '''>>> for i in range(1,6):
+    ...     print(n_iter_calculation(3600,5,i,strategy='equal'), n_iter_calculation(3600,5,i,strategy='exp'))
+    ...
+    360 116
+    720 232
+    1080 464
+    1440 928
+    1800 1860
+    >>>  '''
     if current_step > n_search_dim:
         print("(error) CURRENT STEP cannot exceed N_SEARCH_DIM. Try again.") # should be log
         return -1
@@ -753,7 +762,7 @@ def n_iter_calculation(n_total_trials, n_search_dim, current_step, strategy="exp
         if current_step == n_search_dim:
             return the_rest#n_total_trials - (current_step-1)*seed
         else:
-            return seed
+            return seed*current_step
     elif strategy == 'exp':
         seed = max([1,n_total_trials//add_num(n_search_dim+1)])
         if add_num(n_search_dim)*seed > n_total_trials:
@@ -1034,12 +1043,26 @@ def stepwise_get_current_step(study, n_inner_loop, arg):
                 if (from_index <= cur_n_trial) and (cur_n_trial < to_index):
                     return each_step+1 # 2, 3, 4, 5...
 
+#def stepwise_get_current_step_by_time(max_sec, elapsed_sec, n_inner_loop):
+#    for i in range(1,n_inner_loop+1):
+#        bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, current_step = i, warning=False)
+#        if elapsed_sec < bound_time:
+#            return i
+#    return n_inner_loop+1            
+
+
 def stepwise_get_current_step_by_time(max_sec, elapsed_sec, n_inner_loop):
+    ''' modified by jclee @ 20201117 // (as-is) 0~25%time: exploration / 25%~100%time: exploitation
+                                        (to-be) 0~50%time: exploration / 50%~100%time: exploitation'''
+    rval = 1
     for i in range(1,n_inner_loop+1):
-        bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, current_step = i, warning=False)
-        if elapsed_sec < bound_time:
-            return i
-    return n_inner_loop+1            
+        bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, strategy="equal",current_step = i,warning=False)
+        print(bound_time, i)
+        if bound_time < elapsed_sec:
+            print(rval, i)
+            rval = i
+    rval = min(rval, n_inner_loop)
+    return rval
 
 
 def stepwise_get_current_step_test(cur_n_trial, n_inner_loop, max_trials):
