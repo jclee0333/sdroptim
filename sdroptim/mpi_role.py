@@ -171,7 +171,7 @@ def optuna_mpi(objective, arg):
                                     direction=arg.direction)
         provider = ThreadingforOptunaRank0(study, comm, arg, tags)        
     name = MPI.Get_processor_name()
-    gpu_no = abs(rank%2-1)
+    gpu_no = abs((rank-1)%2-1)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_no)#str(rank - 1)
     while True:
         comm.send(None, dest=0, tag=tags.READY)
@@ -232,7 +232,7 @@ def stepwise_mpi_time(objective, arg, task_and_algorithm):
                                     direction=arg.direction)
         provider = ThreadingforStepwiseRank0(study, comm, arg, tags, n_inner_loop, original_stepwise_params)
     name = MPI.Get_processor_name()
-    gpu_no = abs(rank%2-1)
+    gpu_no = abs((rank-1)%2-1)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_no)#str(rank - 1)
     while True:
         controlled_stepwise_params={} # initialize
@@ -296,7 +296,7 @@ def optuna_mpi_dobj(objective_cpu, objective_gpu, arg):
                                     direction=arg.direction)
         provider = ThreadingforOptunaRank0(study, comm, arg, tags)        
     name = MPI.Get_processor_name()
-    gpu_no = abs(rank%2-1)
+    gpu_no = abs((rank-1)%2-1)
     ###
     if rank%4 < 2: # when 0, 1 process --> cpu job
         objective = objective_cpu
