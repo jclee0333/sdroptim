@@ -210,6 +210,9 @@ def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_na
             plt.savefig(file_prefix+'.png', dpi=300)
             plt.close('all')
     ## model save
+    import pandas as pd
+    pd.DataFrame(np.c_[vs[0],vs[1]], columns=['Predicted','Actual']).to_csv(file_prefix+".csv")
+    #
     if algorithm_name == 'DL_Pytorch':
         import torch
         torch.save(model, file_prefix+extension)
@@ -1056,8 +1059,9 @@ def stepwise_get_current_step_by_time(max_sec, elapsed_sec, n_inner_loop):
                                         (to-be) 0~50%time: exploration / 50%~100%time: exploitation'''
     rval = 1
     for i in range(1,n_inner_loop+1):
-        bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, strategy="equal",current_step = i,warning=False)
-        print(bound_time, i)
+        #bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, strategy="equal",current_step = i,warning=False)
+        bound_time = n_iter_calculation(n_total_trials= max_sec, n_search_dim=n_inner_loop, current_step = i,warning=False)
+        #print(bound_time, i)
         if bound_time < elapsed_sec:
             print(rval, i)
             rval = i
