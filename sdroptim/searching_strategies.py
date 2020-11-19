@@ -210,8 +210,8 @@ def savemodel(algorithm_name, model, file_prefix, make_png, vs, metric, label_na
             plt.savefig(file_prefix+'.png', dpi=300)
             plt.close('all')
     ## model save
-    import pandas as pd
-    pd.DataFrame(np.c_[vs[0],vs[1]], columns=['Predicted','Actual']).to_csv(file_prefix+".csv")
+    #import pandas as pd
+    #pd.DataFrame(np.c_[vs[0],vs[1]], columns=['Predicted','Actual']).to_csv(file_prefix+".csv")
     #
     if algorithm_name == 'DL_Pytorch':
         import torch
