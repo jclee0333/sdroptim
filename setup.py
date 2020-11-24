@@ -18,7 +18,7 @@ setup(
     author_email     = 'jclee@kisti.re.kr',
     url              = 'https://github.com/jclee0333/sdroptim',
     #download_url     = 'Git에 저장된 whl 배포용 압축파일',
-    install_requires = ['optuna>=1.5.0',
+    install_requires = ['optuna==2.0.0',
                         'mpi4py',
                         'sqlalchemy',
                         'sqlalchemy-utils',
