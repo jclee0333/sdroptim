@@ -56,13 +56,13 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
         elif metric == 'f1':
             from sklearn.metrics import f1_score
             try:
-                score = f1_score(y_pred, y_true, average='macro')
+                score = f1_score(y_true, y_pred, average='macro')
             except:
                 y_pred = np.vstack(y_pred)
                 y_true = np.vstack(y_true)
                 vs[0] = y_pred
                 vs[1] = y_true
-                score = f1_score(y_pred, y_true, average='macro')
+                score = f1_score(y_true, y_pred, average='macro')
     import os, glob
     ##
     output_model_path = "output_models/"
