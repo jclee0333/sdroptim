@@ -52,7 +52,7 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
         make_png = True
         if metric == 'r2':
             from sklearn.metrics import r2_score
-            score = r2_score(y_pred, y_true)
+            score = r2_score(y_true, y_pred)
         elif metric == 'f1':
             from sklearn.metrics import f1_score
             try:
