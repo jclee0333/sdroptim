@@ -1,0 +1,94 @@
+{
+    "autofe_system_attr":{
+        "user_name":"enoz",
+        "groupId": 7094303,
+        "dejob_id": 9501,
+        "userId":7094301,
+        "companyId":20154,
+
+        "workspace_name":"test_by_jclee",
+        "job_directory":"autofe-202105210155912",
+        
+        "n_proc": 5,
+        "group_no":10,
+        "time_deadline_sec":3000,
+
+        "title":"home-credit-default-risk-small-output",
+        "aggregation_primitives": ["sum","skew"],
+        "transformation_primitives":["add_numeric","and"],
+        "relationships":[
+            {
+                "parent":["./home-credit-default-risk-small-output/application_train.csv", "SK_ID_CURR"],
+                "child":["./home-credit-default-risk-small-output/bureau.csv", "SK_ID_CURR2"]
+            },
+            {
+                "parent":["./home-credit-default-risk-small-output/bureau.csv", "SK_ID_BUREAU"],
+                "child":["./home-credit-default-risk-small-output/bureau_balance.csv", "SK_ID_BUREAU"]
+            },
+            {
+                "parent":["./home-credit-default-risk-small-output/application_train.csv", "SK_ID_CURR"],
+                "child":["./home-credit-default-risk-small-output/previous_application.csv", "SK_ID_CURR"]
+            },
+            {
+                "parent":["./home-credit-default-risk-small-output/previous_application.csv", "SK_ID_PREV"],
+                "child":["./home-credit-default-risk-small-output/POS_CASH_balance.csv", "SK_ID_PREV"]
+            },
+            {
+                "parent":["./home-credit-default-risk-small-output/previous_application.csv", "SK_ID_PREV"],
+                "child":["./home-credit-default-risk-small-output/installments_payments.csv", "SK_ID_PREV"]
+            },
+            {
+                "parent":["./home-credit-default-risk-small-output/previous_application.csv", "SK_ID_PREV"],
+                "child":["./home-credit-default-risk-small-output/credit_card_balance.csv", "SK_ID_PREV"]
+            }
+        ],
+        "feature_selection":["GBDT"]
+    },
+    
+    "ml_file_path": "./home-credit-default-risk-small-output/", 
+    "ml_file_name": "application_train.csv",
+    "input_columns_index_and_name": {"0": "SK_ID_CURR","2": "NAME_CONTRACT_TYPE","3": "CODE_GENDER","4": "FLAG_OWN_CAR","5": "FLAG_OWN_REALTY","6": "CNT_CHILDREN","7": "AMT_INCOME_TOTAL","8": "AMT_CREDIT","9": "AMT_ANNUITY","10":   "AMT_GOODS_PRICE","11": "NAME_TYPE_SUITE","12": "NAME_INCOME_TYPE","13":    "NAME_EDUCATION_TYPE","14": "NAME_FAMILY_STATUS","15":  "NAME_HOUSING_TYPE","16":   "REGION_POPULATION_RELATIVE","17":  "DAYS_BIRTH","18":  "DAYS_EMPLOYED","19":   "DAYS_REGISTRATION","20":   "DAYS_ID_PUBLISH","21": "OWN_CAR_AGE","22": "FLAG_MOBIL","23":  "FLAG_EMP_PHONE","24":  "FLAG_WORK_PHONE","25": "FLAG_CONT_MOBILE","26":    "FLAG_PHONE","27":  "FLAG_EMAIL","28":  "OCCUPATION_TYPE","29": "CNT_FAM_MEMBERS","30": "REGION_RATING_CLIENT","31":    "REGION_RATING_CLIENT_W_CITY","32": "WEEKDAY_APPR_PROCESS_START","33":  "HOUR_APPR_PROCESS_START","34": "REG_REGION_NOT_LIVE_REGION","35":  "REG_REGION_NOT_WORK_REGION","36":  "LIVE_REGION_NOT_WORK_REGION","37": "REG_CITY_NOT_LIVE_CITY","38":  "REG_CITY_NOT_WORK_CITY","39":  "LIVE_CITY_NOT_WORK_CITY","40": "ORGANIZATION_TYPE","41":   "EXT_SOURCE_1","42":    "EXT_SOURCE_2","43":    "EXT_SOURCE_3","44":    "APARTMENTS_AVG","45":  "BASEMENTAREA_AVG","46":    "YEARS_BEGINEXPLUATATION_AVG","47": "YEARS_BUILD_AVG","48": "COMMONAREA_AVG","49":  "ELEVATORS_AVG","50":   "ENTRANCES_AVG","51":   "FLOORSMAX_AVG","52":   "FLOORSMIN_AVG","53":   "LANDAREA_AVG","54":    "LIVINGAPARTMENTS_AVG","55":    "LIVINGAREA_AVG","56":  "NONLIVINGAPARTMENTS_AVG","57": "NONLIVINGAREA_AVG","58":   "APARTMENTS_MODE","59": "BASEMENTAREA_MODE","60":   "YEARS_BEGINEXPLUATATION_MODE","61":    "YEARS_BUILD_MODE","62":    "COMMONAREA_MODE","63": "ELEVATORS_MODE","64":  "ENTRANCES_MODE","65":  "FLOORSMAX_MODE","66":  "FLOORSMIN_MODE","67":  "LANDAREA_MODE","68":   "LIVINGAPARTMENTS_MODE","69":   "LIVINGAREA_MODE","70": "NONLIVINGAPARTMENTS_MODE","71":    "NONLIVINGAREA_MODE","72":  "APARTMENTS_MEDI","73": "BASEMENTAREA_MEDI","74":   "YEARS_BEGINEXPLUATATION_MEDI","75":    "YEARS_BUILD_MEDI","76":    "COMMONAREA_MEDI","77": "ELEVATORS_MEDI","78":  "ENTRANCES_MEDI","79":  "FLOORSMAX_MEDI","80":  "FLOORSMIN_MEDI","81":  "LANDAREA_MEDI","82":   "LIVINGAPARTMENTS_MEDI","83":   "LIVINGAREA_MEDI","84": "NONLIVINGAPARTMENTS_MEDI","85":    "NONLIVINGAREA_MEDI","86":  "FONDKAPREMONT_MODE","87":  "HOUSETYPE_MODE","88":  "TOTALAREA_MODE","89":  "WALLSMATERIAL_MODE","90":  "EMERGENCYSTATE_MODE","91": "OBS_30_CNT_SOCIAL_CIRCLE","92":    "DEF_30_CNT_SOCIAL_CIRCLE","93":    "OBS_60_CNT_SOCIAL_CIRCLE","94":    "DEF_60_CNT_SOCIAL_CIRCLE","95":    "DAYS_LAST_PHONE_CHANGE","96":  "FLAG_DOCUMENT_2","97": "FLAG_DOCUMENT_3","98": "FLAG_DOCUMENT_4","99": "FLAG_DOCUMENT_5","100":    "FLAG_DOCUMENT_6","101":    "FLAG_DOCUMENT_7","102":    "FLAG_DOCUMENT_8","103":    "FLAG_DOCUMENT_9","104":    "FLAG_DOCUMENT_10","105":   "FLAG_DOCUMENT_11","106":   "FLAG_DOCUMENT_12","107":   "FLAG_DOCUMENT_13","108":   "FLAG_DOCUMENT_14","109":   "FLAG_DOCUMENT_15","110":   "FLAG_DOCUMENT_16","111":   "FLAG_DOCUMENT_17","112":   "FLAG_DOCUMENT_18","113":   "FLAG_DOCUMENT_19","114":   "FLAG_DOCUMENT_20","115":   "FLAG_DOCUMENT_21","116":   "AMT_REQ_CREDIT_BUREAU_HOUR","117": "AMT_REQ_CREDIT_BUREAU_DAY","118":  "AMT_REQ_CREDIT_BUREAU_WEEK","119": "AMT_REQ_CREDIT_BUREAU_MON","120":  "AMT_REQ_CREDIT_BUREAU_QRT","121":  "AMT_REQ_CREDIT_BUREAU_YEAR"},
+    "output_columns_index_and_name":{"1": "TARGET"},
+    "datatype_of_columns": {"0":"Index","2":"Category","3":"Category","4":"Category","5":"Category","6":"Numeric","7":"Numeric","8":"Numeric","9":"Numeric","10":"Numeric","11":"Category","12":"Category","13":"Category","14":"Category","15":"Category","16":"Numeric","17":"Numeric","18":"Numeric","19":"Numeric","20":"Numeric","21":"Numeric","22":"Boolean","23":"Boolean","24":"Boolean","25":"Boolean","26":"Boolean","27":"Boolean","28":"Category","29":"Numeric","30":"Numeric","31":"Numeric","32":"Category","33":"Numeric","34":"Numeric","35":"Numeric","36":"Numeric","37":"Numeric","38":"Numeric","39":"Numeric","40":"Category","41":"Numeric","42":"Numeric","43":"Numeric","44":"Numeric","45":"Numeric","46":"Numeric","47":"Numeric","48":"Numeric","49":"Numeric","50":"Numeric","51":"Numeric","52":"Numeric","53":"Numeric","54":"Numeric","55":"Numeric","56":"Numeric","57":"Numeric","58":"Numeric","59":"Numeric","60":"Numeric","61":"Numeric","62":"Numeric","63":"Numeric","64":"Numeric","65":"Numeric","66":"Numeric","67":"Numeric","68":"Numeric","69":"Numeric","70":"Numeric","71":"Numeric","72":"Numeric","73":"Numeric","74":"Numeric","75":"Numeric","76":"Numeric","77":"Numeric","78":"Numeric","79":"Numeric","80":"Numeric","81":"Numeric","82":"Numeric","83":"Numeric","84":"Numeric","85":"Numeric","86":"Category","87":"Category","88":"Numeric","89":"Category","90":"Category","91":"Numeric","92":"Numeric","93":"Numeric","94":"Numeric","95":"Numeric","96":"Boolean","97":"Boolean","98":"Boolean","99":"Boolean","100":"Boolean","101":"Boolean","102":"Boolean","103":"Boolean","104":"Boolean","105":"Boolean","106":"Boolean","107":"Boolean","108":"Boolean","109":"Boolean","110":"Boolean","111":"Boolean","112":"Boolean","113":"Boolean","114":"Boolean","115":"Boolean","116":"Numeric","117":"Numeric","118":"Numeric","119":"Numeric","120":"Numeric","121":"Numeric"},
+
+    "additional_files":[
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "bureau.csv",
+        "input_columns_index_and_name": {"0": "SK_ID_CURR2","1": "SK_ID_BUREAU","2": "CREDIT_ACTIVE","3": "CREDIT_CURRENCY","4": "DAYS_CREDIT","5": "CREDIT_DAY_OVERDUE","6": "DAYS_CREDIT_ENDDATE","7": "DAYS_ENDDATE_FACT","8": "AMT_CREDIT_MAX_OVERDUE","9": "CNT_CREDIT_PROLONG","10": "AMT_CREDIT_SUM","11": "AMT_CREDIT_SUM_DEBT","12": "AMT_CREDIT_SUM_LIMIT","13": "AMT_CREDIT_SUM_OVERDUE","14": "CREDIT_TYPE","15": "DAYS_CREDIT_UPDATE","16": "AMT_ANNUITY"},
+        "datatype_of_columns": {"0": "Id","1": "Index","2": "Category","3": "Category","4": "Numeric","5": "Numeric","6": "Numeric","7": "Numeric","8": "Numeric","9": "Numeric","10": "Numeric","11": "Numeric","12": "Numeric","13": "Numeric","14": "Category","15": "Numeric","16": "Numeric"}
+        },
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "bureau_balance.csv",
+        "input_columns_index_and_name": {"0": "SK_ID_BUREAU","1": "MONTHS_BALANCE","2": "STATUS"},
+        "datatype_of_columns": {"0": "Id","1": "Numeric","2": "Category"}
+        },
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "POS_CASH_balance.csv",
+        "input_columns_index_and_name": {"0": "SK_ID_PREV","1": "MONTHS_BALANCE","2": "CNT_INSTALMENT", "3": "CNT_INSTALMENT_FUTURE", "4": "NAME_CONTRACT_STATUS", "5": "SK_DPD", "6": "SK_DPD_DEF"},
+        "datatype_of_columns": {"0": "Id","1": "Numeric","2": "Numeric", "3": "Numeric","4": "Category","5": "Numeric","6": "Numeric"}
+        },
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "credit_card_balance.csv",
+        "input_columns_index_and_name": {"0" : "SK_ID_PREV","1" : "MONTHS_BALANCE","2" : "AMT_BALANCE","3" : "AMT_CREDIT_LIMIT_ACTUAL","4" : "AMT_DRAWINGS_ATM_CURRENT","5" : "AMT_DRAWINGS_CURRENT","6" : "AMT_DRAWINGS_OTHER_CURRENT","7" : "AMT_DRAWINGS_POS_CURRENT" ,"8" : "AMT_INST_MIN_REGULARITY","9" : "AMT_PAYMENT_CURRENT","10" : "AMT_PAYMENT_TOTAL_CURRENT","11" : "AMT_RECEIVABLE_PRINCIPAL" ,"12" : "AMT_RECIVABLE","13" : "AMT_TOTAL_RECEIVABLE","14" : "CNT_DRAWINGS_ATM_CURRENT" ,"15" : "CNT_DRAWINGS_CURRENT","16" : "CNT_DRAWINGS_OTHER_CURRENT","17" : "CNT_DRAWINGS_POS_CURRENT" ,"18" : "CNT_INSTALMENT_MATURE_CUM","19" : "NAME_CONTRACT_STATUS","20" : "SK_DPD","21" : "SK_DPD_DEF"},
+        "datatype_of_columns": {"0" : "Id","1" : "Numeric","2" : "Numeric","3" : "Numeric","4" : "Numeric","5" : "Numeric","6" : "Numeric","7" : "Numeric" ,"8" : "Numeric","9" : "Numeric","10" : "Numeric","11" : "Numeric" ,"12" : "Numeric","13" : "Numeric","14" : "Numeric" ,"15" : "Numeric","16" : "Numeric","17" : "Numeric" ,"18" : "Numeric","19" : "Category","20" : "Numeric","21" : "Numeric"}
+        },
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "previous_application.csv",
+        "input_columns_index_and_name": {"0" : "SK_ID_PREV","1" : "SK_ID_CURR","2" : "NAME_CONTRACT_TYPE","3" : "AMT_ANNUITY","4" : "AMT_APPLICATION","5" : "AMT_CREDIT","6" : "AMT_DOWN_PAYMENT","7" : "AMT_GOODS_PRICE","8" : "WEEKDAY_APPR_PROCESS_START","9" : "HOUR_APPR_PROCESS_START","10" : "FLAG_LAST_APPL_PER_CONTRACT","11" : "NFLAG_LAST_APPL_IN_DAY","12" : "RATE_DOWN_PAYMENT","13" : "RATE_INTEREST_PRIMARY","14" : "RATE_INTEREST_PRIVILEGED","15" : "NAME_CASH_LOAN_PURPOSE","16" : "NAME_CONTRACT_STATUS","17" : "DAYS_DECISION","18" : "NAME_PAYMENT_TYPE","19" : "CODE_REJECT_REASON","20" : "NAME_TYPE_SUITE","21" : "NAME_CLIENT_TYPE","22" : "NAME_GOODS_CATEGORY","23" : "NAME_PORTFOLIO","24" : "NAME_PRODUCT_TYPE","25" : "CHANNEL_TYPE","26" : "SELLERPLACE_AREA","27" : "NAME_SELLER_INDUSTRY","28" : "CNT_PAYMENT","29" : "NAME_YIELD_GROUP","30" : "PRODUCT_COMBINATION","31" : "DAYS_FIRST_DRAWING","32" : "DAYS_FIRST_DUE","33" : "DAYS_LAST_DUE_1ST_VERSION","34" : "DAYS_LAST_DUE","35" : "DAYS_TERMINATION","36" : "NFLAG_INSURED_ON_APPROVAL"},
+        "datatype_of_columns": {"0" : "Index","1" : "Id","2" : "Category","3" : "Numeric","4" : "Numeric","5" : "Numeric","6" : "Numeric","7" : "Numeric","8" : "Category","9" : "Numeric","10" : "Category","11" : "Boolean","12" : "Numeric","13" : "Numeric","14" : "Numeric","15" : "Category","16" : "Category","17" : "Numeric","18" : "Category","19" : "Category","20" : "Category","21" : "Category","22" : "Category","23" : "Category","24" : "Category","25" : "Category","26" : "Numeric","27" : "Category","28" : "Numeric","29" : "Category","30" : "Category","31" : "Numeric","32" : "Numeric","33" : "Numeric","34" : "Numeric","35" : "Numeric","36" : "Numeric"}
+        },
+        {
+        "ml_file_path": "./home-credit-default-risk-small-output/", 
+        "ml_file_name": "installments_payments.csv",
+        "input_columns_index_and_name": {"0" : "SK_ID_PREV","1" : "NUM_INSTALMENT_VERSION","2" : "NUM_INSTALMENT_NUMBER","3" : "DAYS_INSTALMENT","4" : "DAYS_ENTRY_PAYMENT","5" : "AMT_INSTALMENT","6" : "AMT_PAYMENT"},
+        "datatype_of_columns": {"0" : "Id","1" : "Numeric","2" : "Numeric","3" : "Numeric","4" : "Numeric","5" : "Numeric","6" : "Numeric"}
+        }
+    ]
+}
+
+
