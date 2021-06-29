@@ -1251,7 +1251,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
     max_sec = 3600 # max_sec n_proc
     if 'autofe_system_attr' in gui_params:
         if 'time_deadline_sec' in gui_params['autofe_system_attr']:
-            max_sec = gui_params['autofe_system_attr']['time_deadline_sec '] # update time_deadline_sec if exists in metadata.json
+            max_sec = gui_params['autofe_system_attr']['time_deadline_sec'] # update time_deadline_sec if exists in metadata.json
     max_sec = max_sec - elapsed_time
     ic, oc, vt = getColumnNamesandVariableTypes(gui_params)
     idx_col_name = ""
@@ -1266,7 +1266,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
         group_no = 1 # default group_no
         if 'autofe_system_attr' in gui_params:
             if 'group_no' in gui_params['autofe_system_attr']:
-                group_no = gui_params['autofe_system_attr']['group_no '] # update group_no if exists in metadata.json
+                group_no = gui_params['autofe_system_attr']['group_no'] # update group_no if exists in metadata.json
         group_no_for_save = group_no
         subgroup_df_name = os.path.join("./", title+"__chunkfor"+str(group_no_for_save)+"subGroup.csv")
         subgroup_df = pd.read_csv(subgroup_df_name)
