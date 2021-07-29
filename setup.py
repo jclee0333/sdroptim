@@ -8,7 +8,7 @@ with open('README.md', 'r', 'utf-8') as f:
 
 setup(
     name             = 'sdroptim',
-    version          = '0.1.4',
+    version          = '0.2.0',
     packages         = find_packages(),
     description      = 'Hyperparameter Optimization for KISTI Science Data Repository (for slurm job library)',
     long_description = readme,
@@ -18,7 +18,10 @@ setup(
     author_email     = 'jclee@kisti.re.kr',
     url              = 'https://github.com/jclee0333/sdroptim',
     #download_url     = 'Git에 저장된 whl 배포용 압축파일',
-    install_requires = ['optuna==2.0.0',
+    install_requires = [
+                        'featuretools',
+                        'nni',
+                        'optuna==2.0.0',
                         'mpi4py',
                         'sqlalchemy',
                         'sqlalchemy-utils',
@@ -33,4 +36,3 @@ setup(
                         'Intended Audience :: Korea Institute of Science and Technology Information',
                         'License :: MIT License']
     )
-
