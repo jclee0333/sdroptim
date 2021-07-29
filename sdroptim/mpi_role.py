@@ -1609,8 +1609,19 @@ class ThreadingforFeatureSelection(object):
         self.results_with_score.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         print(">> Feature Selection Done !")
+        ####
+        # making plotchart
+        from plotly.offline import plot as offplot
+        self.results_with_score = self.results_with_score.replace(np.nan, "-")
+        self.results_with_score = self.results_with_score.sort_values(by='n_cols')
+        self.results_with_score.index = pd.Index(range(len(self.results_with_score)))
+        score_figure = plot_model_scores(self.results_with_score, self.title)
+        score_html_path = outputfilepath.split('.csv')[0]+'.html'
+        offplot(score_figure, filename = score_html_path, auto_open=False)
+        print(">>> Scores html has generated as "+'fs_'+self.title+'__output_scores.html')
+        os.chmod(score_html_path, 0o776)
+        ##
         self.comm.send(None, dest=0, tag=self.tags.EXIT)
-
 ###################################################################################
 ###################################################################################
 ###################################################################################
@@ -2162,18 +2173,14 @@ def apply_filters(df, filter_based_methods, df_types):
                 ''' too slow when large number of columns --> should run under mp '''
                 before = df.shape[1]
                 #df = ft.selection.remove_highly_correlated_features(df, **each_filter_algorithm_params)
-                df = remove_highly_correlated_features(df, **each_filter_algorithm_params)
-                print("* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
+                #df = remove_highly_correlated_features(df, **each_filter_algorithm_params)
+                print("(donotusenow)* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
     return df
 
 def plot_feature_importance(fi_df, fi_title):
     import plotly.io as pio
     import plotly.express as px
     pio.renderers.default = 'colab'
-    importance_values = fi_df.value.tolist()
-    minv=min(importance_values)
-    maxv=max(importance_values)
-    param_names = fi_df.Feature.tolist()
     fig = px.bar(fi_df,
                 x='value',
                 y='Feature',
@@ -2184,6 +2191,28 @@ def plot_feature_importance(fi_df, fi_title):
     )
     fig.update_yaxes(autorange='reversed')
     return fig
+
+
+def plot_model_scores(results_with_score, fs_title):
+    import plotly.io as pio
+    import plotly.express as px
+    pio.renderers.default = 'colab'
+    fig = px.bar(results_with_score.reset_index(),
+                x='index',
+                y='score',
+                text='n_cols',
+                color='base_df',
+                title='Scores: '+fs_title,
+                hover_data=['base_df', 'group_no','wrapper', 'param_value', 'n_cols', 'score'],
+                labels={"index":"LightGBM Models", "score":"Performance Score"},
+    )
+    fig.update_traces(textposition='outside')
+    minv = results_with_score.score.min()
+    maxv = results_with_score.score.max()
+    diffv = maxv-minv
+    fig.update_yaxes(range=[minv-diffv/2, maxv+diffv/2])
+    return fig
+
 
 def model_score(params, job_to_do, dataset, labels, hparams):
     import copy
@@ -2397,8 +2426,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     fi_figure = plot_feature_importance(fi_df, fi_title)
     fi_html_path = outputfilepath.split('.csv')[0]+'.html'
     offplot(fi_figure, filename = fi_html_path, auto_open=False)
+    print(">>> Feature Importance html has generated as "+fi_html_path)
     os.chmod(fi_html_path, 0o776)
-    return confidence
+    return (confidence, n_cols)
 
 def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     # Initializations and preliminaries
@@ -2475,8 +2505,9 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
+            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
             job_to_do['score'] = score
+            job_to_do['n_cols'] = n_cols
             #
             if score is not None:
                 comm.send(job_to_do, dest=0, tag=tags.DONE)
