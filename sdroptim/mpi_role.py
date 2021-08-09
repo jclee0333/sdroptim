@@ -1617,7 +1617,7 @@ class ThreadingforFeatureSelection(object):
         else:
             self.title = ""        
         self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
-        #self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
+        self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
         use_original  = False if self.original_df is None else True
         use_converted = False if self.generated_df is None else True
         self.fs_job_list, self.filter_based_methods = get_fs_chunk_by_metadata(params=self.gui_params, labels=self.labels, use_original=use_original, use_converted=use_converted)
