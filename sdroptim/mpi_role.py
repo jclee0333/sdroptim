@@ -1073,6 +1073,7 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
         ### save entity relationships
         return True
     except:
+        print("[ERR] AutoFE did not work, so the feature matrix cannot be generated. Please check datatypes of dataframe and relationships among them.")
         return False
 
 def mergeAllSubgroupCSVs(gui_params):
@@ -1981,7 +1982,8 @@ def load_origin_dataset(params):
         id_col, target_col = get_id_cols(gui_params)
         original_dataset = pd.read_csv(base_filepath)
         print(">> Original dataset has loaded successfully.")
-        original_dataset = original_dataset.set_index(id_col).sort_index()
+        if id_col:
+            original_dataset = original_dataset.set_index(id_col).sort_index()
         if target_col in original_dataset:
             labels = original_dataset[[target_col]]
             original_dataset = original_dataset.drop(columns = [target_col])
@@ -2005,7 +2007,8 @@ def load_entire_dataset(params, reduce_mem_usage=False):
         print(">> Loading partial datasets in output_list.csv ... ***")
         #dataset = pd.concat( [ pd.read_csv(f) for f in all_parts ] ) # --> 합쳐서 파일 하나로 보내는 것 자체가 큰 문제일수있다.. 병렬로 처리할수있게 개발 필요
         dataset=parallelizize_concat_by_pool(all_parts, read_csv_from_filelist)
-        dataset = dataset.set_index(id_col).sort_index()
+        if id_col:
+            dataset = dataset.set_index(id_col).sort_index()
         print(">> Converted Dataset has loaded successfully.")
         if reduce_mem_usage:
             dataset = reduce_mem_usage_df(dataset)
