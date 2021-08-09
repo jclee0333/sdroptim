@@ -1509,7 +1509,7 @@ class ThreadingforMergeCSVsRank0(object):
                                     if target_filename in self.multiple_group_each_sub:
                                         success_poped = True
                                 target_g = self.subgroup_df[(self.subgroup_df['group_no']==target_subgroup)]
-                                origin_f = self.gui_params['ml_file_path']+self.gui_params['ml_file_name']
+                                origin_f = os.path.join(self.gui_params['ml_file_path'],self.gui_params['ml_file_name'])
                                 target_g_f = target_g[target_g['filepath']==origin_f]
                                 index_range=literal_eval(target_g_f['index_range'].iloc[0])
                                 data_csv = self.df.iloc[index_range[0]:index_range[1]+1]
@@ -1960,7 +1960,7 @@ def mergecsv_mpi_old(metadata_filename, elapsed_time=0.0):
 #### 2021-07-20 added featureselection_mpi
 ###################################################################################
 def get_id_cols(gui_params, return_type='col_name'):
-    base_filepath = gui_params['ml_file_path']+gui_params['ml_file_name']
+    base_filepath = os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name'])
     ic, oc, vt=recursiveFindColumnNamesandVariableTypes(gui_params, base_filepath)
     for target_key, target_name in oc.items():
         pass
@@ -1976,7 +1976,7 @@ def get_id_cols(gui_params, return_type='col_name'):
 
 def load_origin_dataset(params):
     gui_params = params
-    base_filepath = gui_params['ml_file_path']+gui_params['ml_file_name']
+    base_filepath = os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name'])
     if os.path.exists(base_filepath):
         id_col, target_col = get_id_cols(gui_params)
         original_dataset = pd.read_csv(base_filepath)
