@@ -269,84 +269,97 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
     loaded = []
     each_df_name = "each_df"
     current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
-    for each_relationship in ordered_relationships:
-        # load parent
-        target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['parent'][0]].iloc[0]
-        if target_to_load['filepath'] not in [x[0] for x in loaded]:
-            print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
-            if target_to_load['index_range'] != (-1, -1):
-                each_df = pd.read_csv(
-                    target_to_load['filepath'], 
-                    skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
-                each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+    if ordered_relationships:
+        for each_relationship in ordered_relationships:
+            # load parent
+            target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['parent'][0]].iloc[0]
+            if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                if target_to_load['index_range'] != (-1, -1):
+                    each_df = pd.read_csv(
+                        target_to_load['filepath'], 
+                        skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                    each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                else:
+                    each_df = pd.read_csv(
+                        target_to_load['filepath'], 
+                        #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                        )
+                ################
+                # pre-processing
+                ################
+                prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                if prep_res_dict:
+                    for k, v in prep_res_dict.items():
+                        exec(each_df_name +'='+v.replace(k,each_df_name))
+                ################
+                loaded.append((target_to_load['filepath'], each_df))
+            # load child
+            target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['child'][0]].iloc[0]
+            if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                if target_to_load['index_range'] != (-1, -1):
+                    each_df = pd.read_csv(
+                        target_to_load['filepath'], 
+                        skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                    each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                else:
+                    each_df = pd.read_csv(
+                        target_to_load['filepath'], 
+                        #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                        )
+                ################
+                # pre-processing
+                ################
+                prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                if prep_res_dict:
+                    for k, v in prep_res_dict.items():
+                        exec(each_df_name +'='+v.replace(k,each_df_name))
+                ################
+                loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
+            # join via relation key
+            if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
+                for parent_index in range(len(loaded)):
+                    if loaded[parent_index][0]==each_relationship['parent'][0]:
+                        break
+                for child_index in range(len(loaded)):
+                    if loaded[child_index][0]==each_relationship['child'][0]:
+                        break
+                parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
+                child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
+                shaped = list(set(parent_index_values) & set(child_index_values))
+                child_rows_prev = loaded[child_index][1].shape[0] # rows
+                loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
+                child_rows_curr = loaded[child_index][1].shape[0] # rows
+                print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
+                gc.collect()
+        #####################
+        for _index, row in specific_data_chunk_to_consume.iterrows():
+            founded = False
+            for each_loaded in loaded:
+                if row['filepath'] == each_loaded[0]:
+                    each_df = each_loaded[1]
+                    founded = True
+            if not founded:
+                raise ValueError("Load failed!")
             else:
-                each_df = pd.read_csv(
-                    target_to_load['filepath'], 
-                    #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
-                    )
-            ################
-            # pre-processing
-            ################
-            prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
-            if prep_res_dict:
-                for k, v in prep_res_dict.items():
-                    exec(each_df_name +'='+v.replace(k,each_df_name))
-            ################
-            loaded.append((target_to_load['filepath'], each_df))
-        # load child
-        target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['child'][0]].iloc[0]
-        if target_to_load['filepath'] not in [x[0] for x in loaded]:
-            print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
-            if target_to_load['index_range'] != (-1, -1):
-                each_df = pd.read_csv(
-                    target_to_load['filepath'], 
-                    skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
-                each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
-            else:
-                each_df = pd.read_csv(
-                    target_to_load['filepath'], 
-                    #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
-                    )
-            ################
-            # pre-processing
-            ################
-            prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
-            if prep_res_dict:
-                for k, v in prep_res_dict.items():
-                    exec(each_df_name +'='+v.replace(k,each_df_name))
-            ################
-            loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
-        # join via relation key
-        if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
-            for parent_index in range(len(loaded)):
-                if loaded[parent_index][0]==each_relationship['parent'][0]:
-                    break
-            for child_index in range(len(loaded)):
-                if loaded[child_index][0]==each_relationship['child'][0]:
-                    break
-            parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
-            child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
-            shaped = list(set(parent_index_values) & set(child_index_values))
-            child_rows_prev = loaded[child_index][1].shape[0] # rows
-            loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
-            child_rows_curr = loaded[child_index][1].shape[0] # rows
-            print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
-            gc.collect()
-    #####################
-    for _index, row in specific_data_chunk_to_consume.iterrows():
-        founded = False
-        for each_loaded in loaded:
-            if row['filepath'] == each_loaded[0]:
-                each_df = each_loaded[1]
-                founded = True
-        if not founded:
-            raise ValueError("Load failed!")
-        else:
+                agg = row['agg']
+                trans = row['trans']
+                data_list.append((row, each_df))
+        del loaded
+        gc.collect()
+    else:
+        data_list = []
+        current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+        for _index, row in specific_data_chunk_to_consume.iterrows():
+            print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+row['filepath']+" "+str(row['index_range'])+" / "+str(row['full_range'])+" on processor "+str(processor))
+            each_df = pd.read_csv(
+                row['filepath'], 
+                skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+            each_df.index=range(row['index_range'][0],row['index_range'][1]+1)
             agg = row['agg']
             trans = row['trans']
-            data_list.append((row, each_df))
-    del loaded
-    gc.collect()
+            data_list.append((row, each_df))        
     return data_list, (agg, trans), current_group_no
 
 #datasetlist, methods, current_group_no = data_loader(specific_data_chunk_to_consume, rank, ordered_relationships, gui_params)
