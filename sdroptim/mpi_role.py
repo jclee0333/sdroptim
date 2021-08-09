@@ -1,5 +1,6 @@
 """
-  MPI role for Hyper Parameter Optimization by Jeongcheol lee
+  MPI role for Hyper Parameter Optimization by Jeongcheol lee (2020)
+  MPI role for Automated Feature Engineering by Jeongcheol lee (2021)
   -- jclee@kisti.re.kr
 """
 
@@ -208,17 +209,18 @@ def get_csv_shape(filepath, delimiter=','):
     import gc
     n_sampleline=10
     try:
-        with open(filepath) as f:
+        with open(filepath) as f: # UTF-8
             data=f.readlines()
-            #has_header = not any(cell.isdigit() for cell in data[0].split(delimiter)) ## old version that cannot find numeric column names
-            has_header = check_csv_has_header(''.join(data[0:n_sampleline]))
-            cols = len(data[0].split(delimiter))
-            rows = len(data)-1 if has_header else len(data)
-        del data
-        gc.collect()
-        return (rows, cols), has_header
     except:
-        pass
+        with open(filepath, encoding='ISO-8859-1') as f: # ISO-8859-1
+            data=f.readlines()
+    #has_header = not any(cell.isdigit() for cell in data[0].split(delimiter)) ## old version that cannot find numeric column names
+    has_header = check_csv_has_header(''.join(data[0:n_sampleline]))
+    cols = len(data[0].split(delimiter))
+    rows = len(data)-1 if has_header else len(data)
+    del data
+    gc.collect()
+    return (rows, cols), has_header
 
 def get_skiprows_for_partial_reading_csv(has_header, index_range, full_range):
     if len(index_range)!=2:
@@ -466,8 +468,12 @@ def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True af
     ######################
     # check primitives that CANNOT run under dask environments
     if "autofe_system_attr" in gui_params:
-        agg   = gui_params['autofe_system_attr']['aggregation_primitives'] if 'aggregation_primitives' in gui_params['autofe_system_attr'] else []
+        agg = gui_params['autofe_system_attr']['aggregation_primitives'] if 'aggregation_primitives' in gui_params['autofe_system_attr'] else []
         trans = gui_params['autofe_system_attr']['transformation_primitives'] if 'transformation_primitives' in gui_params['autofe_system_attr'] else []
+        if agg is None:
+            agg = []
+        if trans is None:
+            trans = []
         if group_no == 1:
             if dataset:
                 for d in dataset:
@@ -953,7 +959,7 @@ def getFeaturetoolsVariableTypesDict(ic, vt, should_make_index, index_name):
     else:
         raise ValueError("# of column names != # of datatypes, please check metadata.json")
 
-def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
+def AutoFeatureGeneration_old_using_fullpath(datasetlist, methods, gui_params, current_group_no):
     #print("*** DO GENERATION !! ", len(datasetlist), methods," *** in group " , str(current_group_no))
     import featuretools as ft
     import os
@@ -1007,6 +1013,64 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
         outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
         fm.to_csv(outputfilepath, index=True)
         os.chmod(outputfilepath, 0o776)
+        return True
+    except:
+        return False
+
+def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
+    import featuretools as ft
+    import os
+    import pandas as pd
+    if "autofe_system_attr" in gui_params:
+        if "title" in gui_params['autofe_system_attr']:
+            title = gui_params['autofe_system_attr']['title']
+        else:
+            title = ""
+    es = ft.EntitySet(id=title)
+    #################################### 1. Entity load
+    y = pd.Series()
+    for each_df in datasetlist:
+        df = each_df[1]
+        ic, oc, vt=recursiveFindColumnNamesandVariableTypes(gui_params,each_df[0]['filepath'])
+        if oc:
+            for k, y_colname in oc.items():
+                y = each_df[1][y_colname].copy()
+                y_original_filepath = each_df[0]['filepath']
+                df = each_df[1].drop(columns=[y_colname])         #### split target column if exists
+        #
+        index_key, index_name = getColumnNameforSpecificType(ic, vt, "Index", each_df[0]['filepath'])
+        if index_key: # Entities with a unique index
+            make_index = False
+        else:
+            make_index = True
+            index_name = os.path.basename(each_df[0]['filepath'])+'_index'
+        vtypes = getFeaturetoolsVariableTypesDict(ic, vt, make_index, index_name)  # get variable types dict by using datasetlist and gui_params
+        ####
+        os.path.basename(each_df[0]['filepath'])
+        es = es.entity_from_dataframe(entity_id=os.path.basename(each_df[0]['filepath']), dataframe=df,
+            make_index=make_index,
+            index=index_name,
+            variable_types=vtypes)
+    #################################### 2. Add Relationships
+    if "autofe_system_attr" in gui_params:
+        if 'relationships' in gui_params['autofe_system_attr']:
+            if len(gui_params['autofe_system_attr'])>0:
+                relationships = []
+                for each in gui_params['autofe_system_attr']['relationships']:
+                    if 'parent' and 'child' in each:
+                        relationships.append(ft.Relationship(es[os.path.basename(each['parent'][0])][os.path.basename(each['parent'][1])], es[os.path.basename(each['child'][0])][os.path.basename(each['child'][1])]))
+                es = es.add_relationships(relationships)
+    ##################################### 3. Do Deep Feature Synthesis
+    fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
+                          agg_primitives=methods[0],
+                          trans_primitives=methods[1],
+                          where_primitives=[], seed_features=[],
+                          max_depth=2, verbose=0)
+    try:
+        outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
+        fm.to_csv(outputfilepath, index=True)
+        os.chmod(outputfilepath, 0o776)
+        ### save entity relationships
         return True
     except:
         return False
@@ -1537,6 +1601,8 @@ class ThreadingforFeatureSelection(object):
         self.remaining_fs_job_list = None
         self.filter_based_methods = None
         self.results_with_score = pd.DataFrame()
+        self.n_job = 0
+        self.done_job = 0
         self.title = ""
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
@@ -1551,10 +1617,11 @@ class ThreadingforFeatureSelection(object):
         else:
             self.title = ""        
         self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
-        self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
+        #self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
         use_original  = False if self.original_df is None else True
         use_converted = False if self.generated_df is None else True
         self.fs_job_list, self.filter_based_methods = get_fs_chunk_by_metadata(params=self.gui_params, labels=self.labels, use_original=use_original, use_converted=use_converted)
+        self.n_job = len(self.fs_job_list)
         self.remaining_fs_job_list = self.fs_job_list.copy()
         if self.remaining_fs_job_list is None:
             self.comm.Abort() # nothing to do
@@ -1563,7 +1630,7 @@ class ThreadingforFeatureSelection(object):
                 self.original_df = apply_filters(self.original_df, self.filter_based_methods, "original")
             if use_converted:
                 self.generated_df = apply_filters(self.generated_df, self.filter_based_methods, "converted")
-        while closed_workers < num_workers -1 :
+        while closed_workers < num_workers :
             # resource allocation (processor acquisition @ READY status)
             status = MPI.Status()
             data = self.comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -1588,6 +1655,27 @@ class ThreadingforFeatureSelection(object):
                     else:
                         if source != 0:
                             self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
+                        else: # for the source 0
+                            if self.n_job == self.done_job:
+                                closed_workers += 1 ### job done ! FINALIZE
+                                print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
+                                print(">>> Score csv has generated as "+'fs_'+self.title+'__output_scores.csv')
+                                outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
+                                self.results_with_score = self.results_with_score.sort_values(by='group_no')
+                                self.results_with_score.to_csv(outputfilepath, index=False)
+                                os.chmod(outputfilepath, 0o776)
+                                print(">>> Feature Selection Done !")
+                                ####
+                                # making plotchart
+                                from plotly.offline import plot as offplot
+                                self.results_with_score = self.results_with_score.replace(np.nan, "-")
+                                self.results_with_score = self.results_with_score.sort_values(by='n_cols')
+                                self.results_with_score.index = pd.Index(range(len(self.results_with_score)))
+                                score_figure = plot_model_scores(self.results_with_score, self.title)
+                                score_html_path = outputfilepath.split('.csv')[0]+'.html'
+                                offplot(score_figure, filename = score_html_path, auto_open=False)
+                                print(">>> Scores html has generated as "+'fs_'+self.title+'__output_scores.html')
+                                os.chmod(score_html_path, 0o776)
                 else:
                     for i in range(1, self.comm.size):
                         self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
@@ -1599,28 +1687,12 @@ class ThreadingforFeatureSelection(object):
                 outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
                 self.results_with_score.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
+                self.done_job += 1
             elif tag == self.tags.EXIT:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
             time.sleep(0.5)
-        print(">>> Score csv has generated as "+'fs_'+self.title+'__output_scores.csv')
-        outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
-        self.results_with_score = self.results_with_score.sort_values(by='group_no')
-        self.results_with_score.to_csv(outputfilepath, index=False)
-        os.chmod(outputfilepath, 0o776)
-        print(">> Feature Selection Done !")
-        ####
-        # making plotchart
-        from plotly.offline import plot as offplot
-        self.results_with_score = self.results_with_score.replace(np.nan, "-")
-        self.results_with_score = self.results_with_score.sort_values(by='n_cols')
-        self.results_with_score.index = pd.Index(range(len(self.results_with_score)))
-        score_figure = plot_model_scores(self.results_with_score, self.title)
-        score_html_path = outputfilepath.split('.csv')[0]+'.html'
-        offplot(score_figure, filename = score_html_path, auto_open=False)
-        print(">>> Scores html has generated as "+'fs_'+self.title+'__output_scores.html')
-        os.chmod(score_html_path, 0o776)
-        ##
+        ## FINAILIZE (finish thread and rank 0 proess)
         self.comm.send(None, dest=0, tag=self.tags.EXIT)
 ###################################################################################
 ###################################################################################
@@ -2172,8 +2244,8 @@ def apply_filters(df, filter_based_methods, df_types):
             elif each_filter_algorithm == 'remove_highly_correlated_features':
                 ''' too slow when large number of columns --> should run under mp '''
                 before = df.shape[1]
-                #df = ft.selection.remove_highly_correlated_features(df, **each_filter_algorithm_params)
-                #df = remove_highly_correlated_features(df, **each_filter_algorithm_params)
+                df = ft.selection.remove_highly_correlated_features(df, **each_filter_algorithm_params)
+                df = remove_highly_correlated_features(df, **each_filter_algorithm_params)
                 print("(donotusenow)* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
     return df
 
@@ -2275,7 +2347,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     ################################
     if 'encoding' in def_hparams:
         def_hparams.pop('encoding',None)
-    use_gpu=False
+    use_gpu=-1 # default. use_gpu (-1: cpu, otherwise: gpu_no)
+    cpu_only = False
     global DEVICE
     DEVICE=0
     if 'gpu_no' in def_hparams:
@@ -2299,7 +2372,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         from nni.algorithms.feature_engineering.gradient_selector import FeatureGradientSelector
         gfs_params={}
         gfs_params['learning_rate']=def_hparams['learning_rate']
-        if use_gpu is not None:
+        #if use_gpu is not None:
+        if use_gpu>=0:
             gfs_params['device']='gpu'
         gfs_params['classification']=True if gui_params['task']=='Classification' else False
         gfs_params['n_epochs']=5
@@ -2310,6 +2384,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         except:
             gfs_params['device']='cpu'
             fgs = FeatureGradientSelector(**gfs_params)
+            cpu_only = True
             fgs.fit(X_train.replace(np.nan,0).values.astype('float64'), y_train.values.astype('float64')) # torch 
         # get improtant features
         # will return the index with important feature here.
@@ -2329,10 +2404,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         for_wrapper_param = def_hparams.copy()
         if gui_params['task'] == "Classification":
             for_wrapper_param['num_class']=len(label_names)
-        if use_gpu is not None:
-            if use_gpu is not False:
-                for_wrapper_param['device_type']='gpu'
-                for_wrapper_param['gpu_device_id']=use_gpu
+        if use_gpu >= 0:
+            for_wrapper_param['device_type']='gpu'
+            for_wrapper_param['gpu_device_id']=use_gpu
         if 'num_boost_round' in for_wrapper_param:
             for_wrapper_param.pop('num_boost_round')
         if 'silent' in for_wrapper_param:
@@ -2342,6 +2416,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             fgs.fit(X_train.values, y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=-100)
         except:
             for_wrapper_param['device_type']='cpu'
+            for_wrapper_param['nthread']=-1
+            cpu_only = True
             fgs.fit(X_train.values, y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=100)
         '''/home/jclee/Feature_study/mpi_role.py:2079: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider using pd.concat instead.  To get a de-fragmented frame, use `newframe = frame.copy()`'''
         X_train = X_train.iloc[:,fgs.get_selected_features(n_cols)].copy() # in order to avoid highly-defragmented frame
@@ -2385,14 +2461,20 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     code=code.replace("scores.append(confidence)","scores.append(confidence)\n    clfs.append(clf)\n")
     code="\n".join([x for x in code.split('\n') if not x.strip().startswith('print(')])
     ##########################
-    #confidence = -1
-    #score_results = -1
-    #print(code)
     global confidence
+    code=code.replace("'gpu'", "'cpu'")
+    code=code.replace("    'gpu_device_id': DEVICE,\n","")
+    if cpu_only == False:
+        if use_gpu >=0:
+            code=code.replace("'cpu'", "'gpu'")
+            code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n")
     try:
+        print(code)
         exec(code, globals())
     except:
         code=code.replace("'gpu'", "'cpu'")
+        code=code.replace("'gpu'", "'cpu'")
+        code=code.replace("    'gpu_device_id': DEVICE,\n","")
         exec(code, globals())
     #return confidence
     ### 이아래부분도 class/reg 구분지어줘야한다...
