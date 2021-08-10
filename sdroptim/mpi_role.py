@@ -1291,7 +1291,7 @@ def autofe_mpi(metadata_filename):
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
             datasetlist, methods, current_group_no = data_loader(specific_data_chunk_to_consume, rank, ordered_relationships, gui_params)
-            print("datasetliststtttt")
+            #print("datasetliststtttt")
             res = AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no)
             #
             if res:
@@ -1868,7 +1868,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             #else:
             #    print(">> Merge CSVs almost DONE ! Please wait for other process..")
             #    break
-        comm.send(None, dest=0, tag=tags.READY)
+        comm.send(None, dest=0, tag=tags.EXIT)
 
 def mergecsv_mpi_old(metadata_filename, elapsed_time=0.0):
     # Initializations and preliminaries
