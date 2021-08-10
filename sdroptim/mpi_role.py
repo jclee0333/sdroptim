@@ -1206,6 +1206,8 @@ class ThreadingforFeatureEngineeringRank0(object):
         self.timeout_margin = timeout_margin
         self.timeout = False
         self.elapsed_time = 0.0
+        self.n_job = len(data_chunk_df)
+        self.done_job = 0
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1213,7 +1215,7 @@ class ThreadingforFeatureEngineeringRank0(object):
         closed_workers = 0
         num_workers = self.comm.size
         begin_time = time.time()
-        while closed_workers < num_workers -1 :
+        while closed_workers < num_workers :
             # resource allocation (processor acquisition @ READY status)
             status = MPI.Status()
             data = self.comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -1233,6 +1235,10 @@ class ThreadingforFeatureEngineeringRank0(object):
                     else:
                         if source != 0:
                             self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
+                        else:
+                            if self.n_job == self.done_job:
+                                print(">> Feature generation has been finished.")
+                                closed_workers += 1
                 else:
                     #print(":::: TIMEOVER ::::  elapsed_time < (max_sec - timeout_margin)", elapsed_time, self.max_sec, self.timeout_margin)
                     #if source !=0:
@@ -1243,18 +1249,12 @@ class ThreadingforFeatureEngineeringRank0(object):
                     self.timeout = True
                     ##
             elif tag == self.tags.DONE:
+                self.done_job += 1
                 print("[DONE] processor ",source," finished work!")
             elif tag == self.tags.EXIT:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
             time.sleep(0.5)
-        # finally rank 0 will be terminated
-        #if mergeAllSubgroupCSVs(self.gui_params):
-        #   if self.timeout:
-        #       print("Subgroup CSVs generated before 'timeout' are merged successfully.")
-        #   else:
-        #       print("All Subgroup CSVs are merged successfully.")
-        ### file save for elapsed time
         self.comm.send(None, dest=0, tag=self.tags.EXIT)
 
 def autofe_mpi(metadata_filename):
@@ -1291,23 +1291,27 @@ def autofe_mpi(metadata_filename):
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
             datasetlist, methods, current_group_no = data_loader(specific_data_chunk_to_consume, rank, ordered_relationships, gui_params)
+            print("datasetliststtttt")
             res = AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no)
             #
             if res:
-                comm.send(None, dest=0, tag=tags.READY)
+                comm.send(None, dest=0, tag=tags.DONE)
         elif tag == tags.EXIT:
-            if rank != 0:
-                print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
-            else:
-                print(">> All Process DONE controlled by the (rank 0) worker as well as the scheduler")
+            print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
             break
-        else:
-            pass
     comm.send(None, dest=0, tag=tags.EXIT)
-    if rank==0:
-        return provider.elapsed_time
-    else:
-        return 0.0
+#            if rank != 0:
+#                print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
+#            else:
+#                print(">> All Process DONE controlled by the (rank 0) worker as well as the scheduler")
+#            break
+#        else:
+#            pass
+#    comm.send(None, dest=0, tag=tags.EXIT)
+#    if rank==0:
+#        return provider.elapsed_time
+#    else:
+#        return 0.0
 ####################################################
 
 def merge_csvs(each_sub, rank):
@@ -1465,6 +1469,8 @@ class ThreadingforMergeCSVsRank0(object):
         self.title = ""
         self.idx_col_name = ""
         self.finished_job =[]
+        self.n_jobs = 0
+        self.done_job = 0
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1487,6 +1493,7 @@ class ThreadingforMergeCSVsRank0(object):
             if len(self.subgroup_df['group_no'].unique())>1: # row가 2개이상이고 (single job이 아니고..)
                 self.parallelable_false_sugbroup_list = list(self.subgroup_df[self.subgroup_df['parallelable']==False]['group_no'].unique())
                 self.parallelable_true_sugbroup_list = list(self.subgroup_df[self.subgroup_df['parallelable']==True]['group_no'].unique())
+                self.n_jobs = len(self.parallelable_true_sugbroup_list)
                 if len(self.parallelable_false_sugbroup_list)>0: #병렬실행불가한것들이 있다면
                     self.update_required = True
             if self.update_required:
@@ -1504,7 +1511,7 @@ class ThreadingforMergeCSVsRank0(object):
                 #
                 for each in self.parallelable_false_sugbroup_list:
                     self.finished_job.append((each, "(no file) merged to other groups"))
-                while closed_workers < num_workers -1 :
+                while closed_workers < num_workers:
                     # resource allocation (processor acquisition @ READY status)
                     status = MPI.Status()
                     reveiced_data = self.comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -1533,10 +1540,15 @@ class ThreadingforMergeCSVsRank0(object):
                             else: # empty subgrouplist
                                 if source != 0:
                                     self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
+                                else:
+                                    if self.n_jobs == self.done_job:
+                                        print(">> Merging processes among non-parallelable csv and other csvs have done.")
+                                        closed_workers += 1
                         else: # time out
                             for i in range(1, self.comm.size):
                                 self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
                     elif tag == self.tags.DONE:
+                        self.done_job +=1
                         print("[DONE] processor ",source,"(update) finished work!")
                     elif tag == self.tags.EXIT:
                         closed_workers += 1
@@ -1847,13 +1859,16 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
             comm.send(None, dest=0, tag=tags.READY)
         elif tag == tags.EXIT:
-            if rank != 0:
-                print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
-                comm.send(None, dest=0, tag=tags.EXIT)
-                break
-            else:
-                print(">> Merge CSVs almost DONE ! Please wait for other process..")
-                break
+            print(">> Merge CSVs almost DONE ! Please wait for other process..")
+            break
+            #if rank != 0:
+            #    print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
+            #    comm.send(None, dest=0, tag=tags.EXIT)
+            #    break
+            #else:
+            #    print(">> Merge CSVs almost DONE ! Please wait for other process..")
+            #    break
+        comm.send(None, dest=0, tag=tags.READY)
 
 def mergecsv_mpi_old(metadata_filename, elapsed_time=0.0):
     # Initializations and preliminaries
