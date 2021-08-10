@@ -1251,6 +1251,7 @@ class ThreadingforFeatureEngineeringRank0(object):
             elif tag == self.tags.DONE:
                 self.done_job += 1
                 print("[DONE] processor ",source," finished work!")
+                print(self.done_job, "/ ", self.n_job)
             elif tag == self.tags.EXIT:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
@@ -1294,6 +1295,7 @@ def autofe_mpi(metadata_filename):
             #print("datasetliststtttt")
             res = AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no)
             #
+            print("** autofe res:", res)
             if res:
                 comm.send(None, dest=0, tag=tags.DONE)
         elif tag == tags.EXIT:
