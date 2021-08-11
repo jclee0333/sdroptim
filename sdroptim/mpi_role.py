@@ -1206,8 +1206,7 @@ class ThreadingforFeatureEngineeringRank0(object):
         self.timeout_margin = timeout_margin
         self.timeout = False
         self.elapsed_time = 0.0
-        self.n_job = len(data_chunk_df)
-        self.done_job = 0
+        self.finished = False
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1215,7 +1214,7 @@ class ThreadingforFeatureEngineeringRank0(object):
         closed_workers = 0
         num_workers = self.comm.size
         begin_time = time.time()
-        while closed_workers < num_workers :
+        while closed_workers < num_workers:
             # resource allocation (processor acquisition @ READY status)
             status = MPI.Status()
             data = self.comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -1233,30 +1232,21 @@ class ThreadingforFeatureEngineeringRank0(object):
                         self.remaining_data_chunk_df = the_rest
                         self.comm.send(specific_data_chunk_to_consume, dest=source, tag=self.tags.START) # allow to train (1)
                     else:
-                        if source != 0:
-                            self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
-                        else:
-                            if self.n_job == self.done_job:
-                                print(">> Feature generation has been finished.")
-                                closed_workers += 1
+                        self.comm.send(None, dest=source, tag=self.tags.EXIT_REQ) # allow to train (1)
                 else:
                     #print(":::: TIMEOVER ::::  elapsed_time < (max_sec - timeout_margin)", elapsed_time, self.max_sec, self.timeout_margin)
-                    #if source !=0:
-                    for i in range(1, self.comm.size):
-                        self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
-                    ## merge csvs when work finished due to timeout
-                    #if mergeAllSubgroupCSVs(self.gui_params):
+                    for i in range(0, self.comm.size):
+                        self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                     self.timeout = True
-                    ##
             elif tag == self.tags.DONE:
-                self.done_job += 1
                 print("[DONE] processor ",source," finished work!")
-                print(self.done_job, "/ ", self.n_job)
-            elif tag == self.tags.EXIT:
+            elif tag == self.tags.EXIT_RES:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
             time.sleep(0.5)
-        self.comm.send(None, dest=0, tag=self.tags.EXIT)
+        #################################
+        print(":: AUTOFE_MPI scheduler thread terminated ::")
+        self.finished=True
 
 def autofe_mpi(metadata_filename):
     # Initializations and preliminaries
@@ -1265,7 +1255,7 @@ def autofe_mpi(metadata_filename):
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
-    tags = enum('READY', 'DONE', 'EXIT', 'START')
+    tags = enum('READY', 'DONE', 'EXIT_REQ','EXIT_RES', 'START')
     #########################################################################
     name = MPI.Get_processor_name()
     print("I am a worker with rank %d on %s." % (rank, name))
@@ -1292,24 +1282,18 @@ def autofe_mpi(metadata_filename):
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
             datasetlist, methods, current_group_no = data_loader(specific_data_chunk_to_consume, rank, ordered_relationships, gui_params)
-            #print("datasetliststtttt")
             res = AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no)
-            #
-            print("** autofe res:", res)
             if res:
                 comm.send(None, dest=0, tag=tags.DONE)
-        elif tag == tags.EXIT:
+        elif tag == tags.EXIT_REQ:
             print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
+            comm.send(None, dest=0, tag=tags.EXIT_RES)
             break
-    comm.send(None, dest=0, tag=tags.EXIT)
-#            if rank != 0:
-#                print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
-#            else:
-#                print(">> All Process DONE controlled by the (rank 0) worker as well as the scheduler")
-#            break
-#        else:
-#            pass
-#    comm.send(None, dest=0, tag=tags.EXIT)
+    if rank == 0:
+        while True:
+            if provider.finished:
+                print("ALL finishied")
+                break
 #    if rank==0:
 #        return provider.elapsed_time
 #    else:
@@ -1473,6 +1457,7 @@ class ThreadingforMergeCSVsRank0(object):
         self.finished_job =[]
         self.n_jobs = 0
         self.done_job = 0
+        self.finished = False
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1500,7 +1485,55 @@ class ThreadingforMergeCSVsRank0(object):
                     self.update_required = True
             if self.update_required:
                 print("# Thread 0 is loading for update...")
-                self.df = pd.read_csv(self.single_group_each_sub)
+                #################################################
+                if len(self.single_group_each_sub)>1:
+                    to_merge_list = []
+                    target_list = []
+                    for i in range(len(self.single_group_each_sub)):
+                        if [int(self.single_group_each_sub[i].split('__G')[1].split('.csv')[0])] == self.parallelable_false_sugbroup_list: # non-parallelable file should be merged to other file
+                            to_merge_list.append(self.single_group_each_sub[i])
+                        else:
+                            target_list.append(self.single_group_each_sub[i])
+                    if target_list:
+                        target_df = pd.read_csv(target_list[0])
+                        target_df_filename = target_list[0]
+                        target_df_group = int(target_list[0].split('__G')[1].split('.csv')[0])
+                    else:
+                        target_df = pd.read_csv(to_merge_list[0])
+                        target_df_filename = to_merge_list[0]
+                        target_df_group = int(to_merge_list[0].split('__G')[1].split('.csv')[0])
+                    for i in range(len(target_list)-1):
+                        temp = pd.read_csv(target_list[i+1])
+                        target_df = merge_df_a_and_b( (target_df, temp) )
+                        self.finished_job.append( (int(target_list[i+1].split('__G')[1].split('.csv')[0]), "(no file) merged to other groups"))
+                        if target_df is not None:
+                            outputfilepath=os.path.join("./",target_df_filename)
+                            target_df.to_csv(outputfilepath, index=False)
+                            os.chmod(outputfilepath, 0o776)
+                            print(str(target_list[i+1])+" -> "+str(target_df_filename)+ "(merge done!)")
+                    for i in range(len(to_merge_list)):
+                        temp = pd.read_csv(to_merge_list[i])
+                        target_df = merge_df_a_and_b( (target_df, temp) )
+                        self.finished_job.append( (int(to_merge_list[i].split('__G')[1].split('.csv')[0]), "(no file) merged to other groups"))
+                        if target_df is not None:
+                            outputfilepath=os.path.join("./",target_df_filename)
+                            target_df.to_csv(outputfilepath, index=False)
+                            os.chmod(outputfilepath, 0o776)
+                            print(str(to_merge_list[i])+" -> "+str(target_df_filename)+ "(merge done!)")
+                    if self.multiple_group_each_sub == []:
+                        self.finished_job.append( (target_df_group, target_df_filename) )
+                        # finally rank 0 will be terminated
+                        for i in range(1, self.comm.size):
+                            self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
+                        print(">>> (UPDATE) History generated as "+'fm_'+self.title+'__output_list.csv')
+                        res = pd.DataFrame(self.finished_job, columns = ['finished_subgroup','filename'])
+                        outputfilepath=os.path.join("./",'fm_'+self.title+'__output_list.csv')
+                        res.to_csv(outputfilepath, index=False)
+                        os.chmod(outputfilepath, 0o776)
+                        self.finished=True
+                else:
+                    self.df = pd.read_csv(self.single_group_each_sub)
+                #################################################
                 print("# Finished to load single group df for update to others...")
                 #
                 if self.idx_col_name:
@@ -1522,13 +1555,15 @@ class ThreadingforMergeCSVsRank0(object):
                     elapsed_time = time.time() - begin_time
                     if tag == self.tags.READY:
                         if elapsed_time < self.max_sec: # do until (max_sec)
-                            if len(self.parallelable_true_sugbroup_list)>0:
+                            if (len(self.parallelable_true_sugbroup_list)>0) and (self.multiple_group_each_sub):
                                 success_poped = False
                                 target_subgroup = -1
                                 target_filename = ""
                                 while not success_poped:
+                                    print(self.parallelable_true_sugbroup_list, "****")
                                     target_subgroup = self.parallelable_true_sugbroup_list.pop(0)
                                     target_filename = 'fm_'+self.title+'__G'+str(target_subgroup)+'.csv'
+                                    print(target_filename, self.multiple_group_each_sub)
                                     if target_filename in self.multiple_group_each_sub:
                                         success_poped = True
                                 target_g = self.subgroup_df[(self.subgroup_df['group_no']==target_subgroup)]
@@ -1540,19 +1575,20 @@ class ThreadingforMergeCSVsRank0(object):
                                 self.finished_job.append((target_subgroup ,target_filename))
                                 self.comm.send([data_csv, target_subgroup, target_filename], dest=source, tag=self.tags.START) # allow to train (1)
                             else: # empty subgrouplist
-                                if source != 0:
-                                    self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
-                                else:
-                                    if self.n_jobs == self.done_job:
-                                        print(">> Merging processes among non-parallelable csv and other csvs have done.")
-                                        closed_workers += 1
+                                self.comm.send(None,dest=source, tag=self.tags.EXIT_REQ)
+                                #if source != 0:
+                                #    self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
+                                #else:
+                                #    if self.n_jobs == self.done_job:
+                                #        print(">> Merging processes among non-parallelable csv and other csvs have done.")
+                                #        closed_workers += 1
                         else: # time out
-                            for i in range(1, self.comm.size):
-                                self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
+                            for i in range(0, self.comm.size):
+                                self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                     elif tag == self.tags.DONE:
                         self.done_job +=1
                         print("[DONE] processor ",source,"(update) finished work!")
-                    elif tag == self.tags.EXIT:
+                    elif tag == self.tags.EXIT_RES:
                         closed_workers += 1
                         print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
                     time.sleep(0.5)
@@ -1562,6 +1598,7 @@ class ThreadingforMergeCSVsRank0(object):
                 outputfilepath=os.path.join("./",'fm_'+self.title+'__output_list.csv')
                 res.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
+                self.finished=True
                 #self.comm.send(None, dest=0, tag=self.tags.EXIT)
                 #########################################################
             else: 
@@ -1569,7 +1606,7 @@ class ThreadingforMergeCSVsRank0(object):
                 # 2. 해당 데이터를 이용한 업데이트가 필요없다면, 타겟이 되는 컬럼이 같은 복수의 데이터 그룹(Multiple_group_each_sub)자체가 아예 존재하지 않는
                 # 3. single-job 형태일 것이므로, 아래와 같이 직접 처리
                 for i in range(1, self.comm.size):
-                    self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
+                    self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                 unique_group_no=pd.Series(self.subgroup_df['group_no'].unique())
                 final_output_file_names=['fm_'+self.title+'__G'+str(x)+'.csv'for x in unique_group_no]
                 output_exists = []
@@ -1587,11 +1624,12 @@ class ThreadingforMergeCSVsRank0(object):
                 outputfilepath=os.path.join("./",'fm_'+self.title+'__output_list.csv')
                 res.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
+                self.finished=True
         else:
             # 1. 단일 데이터 그룹의 파일이 없다면({ }),
             # 2. 타겟이 되는 컬럼이 같은 복수의 데이터 그룹(Multiple_group_each_sub)자체 최종 결과물이므로 아래와 같이 처리
             for i in range(1, self.comm.size):
-                self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
+                self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
             unique_group_no=pd.Series(self.subgroup_df['group_no'].unique())
             final_output_file_names=['fm_'+self.title+'__G'+str(x)+'.csv'for x in unique_group_no]
             output_exists = []
@@ -1609,7 +1647,7 @@ class ThreadingforMergeCSVsRank0(object):
             outputfilepath=os.path.join("./",'fm_'+self.title+'__output_list.csv')
             res.to_csv(outputfilepath, index=False)
             os.chmod(outputfilepath, 0o776)
-        self.comm.send(None, dest=0, tag=self.tags.EXIT)
+            self.finished=True
 
 class ThreadingforFeatureSelection(object):
     def __init__(self, gui_params, comm, tags, max_sec):
@@ -1632,6 +1670,8 @@ class ThreadingforFeatureSelection(object):
         self.n_job = 0
         self.done_job = 0
         self.title = ""
+        self.finished=False
+        self.timeout=False
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1681,32 +1721,11 @@ class ThreadingforFeatureSelection(object):
                             target_data = self.generated_df
                         self.comm.send([specific_data_chunk_to_consume, target_data, self.labels], dest=source, tag=self.tags.START) # allow to train (1)
                     else:
-                        if source != 0:
-                            self.comm.send(None, dest=source, tag=self.tags.EXIT) # allow to train (1)
-                        else: # for the source 0
-                            if self.n_job == self.done_job:
-                                closed_workers += 1 ### job done ! FINALIZE
-                                print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
-                                print(">>> Score csv has generated as "+'fs_'+self.title+'__output_scores.csv')
-                                outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
-                                self.results_with_score = self.results_with_score.sort_values(by='group_no')
-                                self.results_with_score.to_csv(outputfilepath, index=False)
-                                os.chmod(outputfilepath, 0o776)
-                                print(">>> Feature Selection Done !")
-                                ####
-                                # making plotchart
-                                from plotly.offline import plot as offplot
-                                self.results_with_score = self.results_with_score.replace(np.nan, "-")
-                                self.results_with_score = self.results_with_score.sort_values(by='n_cols')
-                                self.results_with_score.index = pd.Index(range(len(self.results_with_score)))
-                                score_figure = plot_model_scores(self.results_with_score, self.title)
-                                score_html_path = outputfilepath.split('.csv')[0]+'.html'
-                                offplot(score_figure, filename = score_html_path, auto_open=False)
-                                print(">>> Scores html has generated as "+'fs_'+self.title+'__output_scores.html')
-                                os.chmod(score_html_path, 0o776)
-                else:
-                    for i in range(1, self.comm.size):
-                        self.comm.send(None, dest=i, tag=self.tags.EXIT) # stop all except rank 0
+                        self.comm.send(None, dest=source, tag=self.tags.EXIT_REQ) # allow to train (1)
+                else: # time out
+                    for i in range(0, self.comm.size):
+                        self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
+                    self.timeout = True
             elif tag == self.tags.DONE:
                 self.results_with_score = self.results_with_score.append(data)
                 self.results_with_score = self.results_with_score.sort_values(by='group_no')
@@ -1716,12 +1735,31 @@ class ThreadingforFeatureSelection(object):
                 self.results_with_score.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
                 self.done_job += 1
-            elif tag == self.tags.EXIT:
+            elif tag == self.tags.EXIT_RES:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
             time.sleep(0.5)
-        ## FINAILIZE (finish thread and rank 0 proess)
-        self.comm.send(None, dest=0, tag=self.tags.EXIT)
+        ### finalize
+        print(">>> Score csv has generated as "+'fs_'+self.title+'__output_scores.csv')
+        outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
+        self.results_with_score = self.results_with_score.sort_values(by='group_no')
+        self.results_with_score.to_csv(outputfilepath, index=False)
+        os.chmod(outputfilepath, 0o776)
+        print(">>> Feature Selection Done !")
+        ####
+        # making plotchart
+        from plotly.offline import plot as offplot
+        self.results_with_score = self.results_with_score.replace(np.nan, "-")
+        self.results_with_score = self.results_with_score.sort_values(by='n_cols')
+        self.results_with_score.index = pd.Index(range(len(self.results_with_score)))
+        score_figure = plot_model_scores(self.results_with_score, self.title)
+        score_html_path = outputfilepath.split('.csv')[0]+'.html'
+        offplot(score_figure, filename = score_html_path, auto_open=False)
+        print(">>> Scores html has generated as "+'fs_'+self.title+'__output_scores.html')
+        os.chmod(score_html_path, 0o776)
+        print(":: FEATURESELECTION_MPI scheduler thread terminated ::")
+        self.finished=True
+
 ###################################################################################
 ###################################################################################
 ###################################################################################
@@ -1801,7 +1839,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
-    tags = enum('READY', 'DONE', 'EXIT', 'START')
+    tags = enum('READY', 'DONE', 'EXIT_REQ','EXIT_RES', 'START')
     #########################################################################
     name = MPI.Get_processor_name()
     print("I am a worker with rank %d on %s." % (rank, name))
@@ -1840,7 +1878,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             elif len(each_sub)==1:
                 #print("provider : each_sub == 1 is running...")
                 print("* Single group file_name : ", each_sub[0])
-                single_group_each_sub = each_sub[0]
+                single_group_each_sub.append(each_sub[0])
         provider = ThreadingforMergeCSVsRank0(gui_params, comm, tags, subgroup_df, single_group_each_sub, multiple_group_each_sub, max_sec)
     name = MPI.Get_processor_name()
     while True:
@@ -1859,10 +1897,21 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
                 os.chmod(outputfilepath, 0o776)
                 print(str(data[1])+" -> "+str(data[2])+ "(merge done!)")
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
-            comm.send(None, dest=0, tag=tags.READY)
-        elif tag == tags.EXIT:
-            print(">> Merge CSVs almost DONE ! Please wait for other process..")
+            #comm.send(None, dest=0, tag=tags.READY)
+        elif tag == tags.EXIT_REQ:
+            print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
+            comm.send(None, dest=0, tag=tags.EXIT_RES)
+            #print(">> Merge CSVs almost DONE ! Please wait for other process..")
             break
+    if rank == 0:
+        while True:
+            if provider.finished:
+                print("ALL finishied")
+                break
+
+
+
+
             #if rank != 0:
             #    print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
             #    comm.send(None, dest=0, tag=tags.EXIT)
@@ -1870,7 +1919,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             #else:
             #    print(">> Merge CSVs almost DONE ! Please wait for other process..")
             #    break
-        comm.send(None, dest=0, tag=tags.EXIT)
+        #comm.send(None, dest=0, tag=tags.EXIT)
 
 def mergecsv_mpi_old(metadata_filename, elapsed_time=0.0):
     # Initializations and preliminaries
@@ -2035,8 +2084,10 @@ def load_entire_dataset(params, reduce_mem_usage=False):
         output_list = pd.read_csv('fm_'+title+"__output_list.csv")
         all_parts = [x for x in output_list['filename'].values if x.endswith('.csv')]
         print(">> Loading partial datasets in output_list.csv ... ***")
-        #dataset = pd.concat( [ pd.read_csv(f) for f in all_parts ] ) # --> 합쳐서 파일 하나로 보내는 것 자체가 큰 문제일수있다.. 병렬로 처리할수있게 개발 필요
-        dataset=parallelizize_concat_by_pool(all_parts, read_csv_from_filelist)
+        if len(all_parts)>1:
+            dataset=parallelizize_concat_by_pool(all_parts, read_csv_from_filelist)
+        else:
+            dataset = pd.concat( [ pd.read_csv(f) for f in all_parts ] )
         if id_col:
             dataset = dataset.set_index(id_col).sort_index()
         print(">> Converted Dataset has loaded successfully.")
@@ -2279,7 +2330,8 @@ def apply_filters(df, filter_based_methods, df_types):
                 before = df.shape[1]
                 df = ft.selection.remove_highly_correlated_features(df, **each_filter_algorithm_params)
                 df = remove_highly_correlated_features(df, **each_filter_algorithm_params)
-                print("(donotusenow)* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
+                #print("(donotusenow)* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
+                print("* "+df_types+" <- Remove Highly Correlated Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
     return df
 
 def plot_feature_importance(fi_df, fi_title):
@@ -2502,7 +2554,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             code=code.replace("'cpu'", "'gpu'")
             code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n")
     try:
-        print(code)
+        #print(code)
         exec(code, globals())
     except:
         code=code.replace("'gpu'", "'cpu'")
@@ -2552,7 +2604,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
-    tags = enum('READY', 'DONE', 'EXIT', 'START')#, 'FINALIZE')
+    tags = enum('READY', 'DONE', 'EXIT_REQ','EXIT_RES', 'START')
     #########################################################################
     name = MPI.Get_processor_name()
     print("I am a worker with rank %d on %s." % (rank, name))
@@ -2626,11 +2678,17 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
             #
             if score is not None:
                 comm.send(job_to_do, dest=0, tag=tags.DONE)
-            comm.send(None, dest=0, tag=tags.READY)
-        elif tag == tags.EXIT:
+            #comm.send(None, dest=0, tag=tags.READY)
+        elif tag == tags.EXIT_REQ:
             print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
+            comm.send(None, dest=0, tag=tags.EXIT_RES)
             break
-    comm.send(None, dest=0, tag=tags.EXIT)
+    if rank == 0:
+        while True:
+            if provider.finished:
+                print("ALL finishied")
+                break
+
 ##########################################################################
 ## model score
 ## model_score()
