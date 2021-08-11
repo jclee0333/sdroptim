@@ -1560,10 +1560,10 @@ class ThreadingforMergeCSVsRank0(object):
                                 target_subgroup = -1
                                 target_filename = ""
                                 while not success_poped:
-                                    print(self.parallelable_true_sugbroup_list, "****")
+                                    #print(self.parallelable_true_sugbroup_list, "****")
                                     target_subgroup = self.parallelable_true_sugbroup_list.pop(0)
                                     target_filename = 'fm_'+self.title+'__G'+str(target_subgroup)+'.csv'
-                                    print(target_filename, self.multiple_group_each_sub)
+                                    #print(target_filename, self.multiple_group_each_sub)
                                     if target_filename in self.multiple_group_each_sub:
                                         success_poped = True
                                 target_g = self.subgroup_df[(self.subgroup_df['group_no']==target_subgroup)]
