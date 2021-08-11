@@ -1772,7 +1772,14 @@ def merge_df_a_and_b(two_dfs):
     import pandas as pd
     base_df = two_dfs[0]
     target_df = two_dfs[1]
-    res = base_df.merge(target_df,how='left').set_axis(base_df.index) # keep index
+    try:
+        res = base_df.merge(target_df,how='left').set_axis(base_df.index) # keep index
+    except:
+        # when pandas bug
+        mid = list(set(base_df.index) & set(target_df.index))
+        base_df = base_df.iloc[mid]
+        target_df = target_df.iloc[mid]
+        res = base_df.transpose().append(target_df.transpose()).transpose()
     return res
 
 def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
