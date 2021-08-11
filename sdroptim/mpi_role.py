@@ -1897,7 +1897,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
             data_csv = data[0]            
-            target_csv = pd.read_csv(target_filename)
+            target_csv = pd.read_csv(data[2])
             if idx_col_name: 
                 target_csv=target_csv.set_index(idx_col_name)
             #
