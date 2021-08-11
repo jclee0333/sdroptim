@@ -1532,7 +1532,7 @@ class ThreadingforMergeCSVsRank0(object):
                         os.chmod(outputfilepath, 0o776)
                         self.finished=True
                 else:
-                    self.df = pd.read_csv(self.single_group_each_sub)
+                    self.df = pd.read_csv(self.single_group_each_sub[0])
                 #################################################
                 print("# Finished to load single group df for update to others...")
                 #
