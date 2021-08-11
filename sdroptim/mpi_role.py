@@ -2419,7 +2419,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         print("[ERR] Number of columns requires more than 2.")
         return 0.0
     elif param_value < 1:
-        n_cols = int(n_features*param_value)
+        n_cols = max(int(n_features*param_value), 1) #minimum 1
     elif param_value > 1:
         n_cols = min(int(param_value), n_features) # set maximum n_cols
     else: # if None or NaN
