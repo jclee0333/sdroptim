@@ -1067,7 +1067,7 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     #################################### 2. Add Relationships
     if "autofe_system_attr" in gui_params:
         if 'relationships' in gui_params['autofe_system_attr']:
-            if len(gui_params['autofe_system_attr'])>0:
+            if len(gui_params['autofe_system_attr']['relationships'])>0:
                 relationships = []
                 for each in gui_params['autofe_system_attr']['relationships']:
                     if 'parent' and 'child' in each:
