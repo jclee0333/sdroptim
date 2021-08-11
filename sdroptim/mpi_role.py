@@ -1896,7 +1896,12 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            df_merged = merge_df_a_and_b( (data[0], pd.read_csv(data[2]).set_index(idx_col_name) ) )
+            data_csv = data[0]            
+            target_csv = pd.read_csv(target_filename)
+            if idx_col_name: 
+                target_csv=target_csv.set_index(idx_col_name)
+            #
+            df_merged = merge_df_a_and_b( (data_csv, target_csv) )
             if df_merged is not None:
                 #try:
                 outputfilepath=data[2]#+"_update"
