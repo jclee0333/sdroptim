@@ -2449,7 +2449,10 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     ################################
     from sklearn.model_selection import train_test_split
     global X_train, X_test, y_train, y_test
-    X_train, X_test, y_train, y_test = train_test_split(dataset, labels[target_col], test_size=gui_params['testing_frame_rate'])
+    ##### cleaning for automatic modeling # add 20210811
+    m_dataset = dataset.copy()
+    m_dataset.replace([np.inf, -np.inf], np.nan, inplace=True)
+    X_train, X_test, y_train, y_test = train_test_split(m_dataset, labels[target_col], test_size=gui_params['testing_frame_rate'])
     features = X_train.columns.tolist()
     target = target_col
     ################################################
@@ -2463,14 +2466,17 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         gfs_params['classification']=True if gui_params['task']=='Classification' else False
         gfs_params['n_epochs']=5
         gfs_params['n_features']=n_cols
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        scaled = scaler.fit(X_train.append(X_test))
         try:
             fgs = FeatureGradientSelector(**gfs_params)
-            fgs.fit(X_train.replace(np.nan,0).values.astype('float64'), y_train.values.astype('float64')) # torch 
+            fgs.fit(scaled.transform(X_train.replace(np.nan,0)), y_train.values) # torch 
         except:
             gfs_params['device']='cpu'
             fgs = FeatureGradientSelector(**gfs_params)
             cpu_only = True
-            fgs.fit(X_train.replace(np.nan,0).values.astype('float64'), y_train.values.astype('float64')) # torch 
+            fgs.fit(scaled.transform(X_train.replace(np.nan,0)), y_train.values) # torch 
         # get improtant features
         # will return the index with important feature here.
         X_train = X_train.iloc[:,fgs.get_selected_features()].copy() # in order to avoid highly-defragmented frame
@@ -2481,6 +2487,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         outputfilepath=os.path.join("./", "fs_GFS_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs =  (X_train.append(X_test).sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
+        if 'index' in fs.columns:
+            fs = fs.drop('index', axis=1)
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ##############
@@ -2497,13 +2505,16 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         if 'silent' in for_wrapper_param:
             for_wrapper_param.pop('silent')
         fgs = GBDTSelector()
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        scaled = scaler.fit(X_train.append(X_test))
         try:
-            fgs.fit(X_train.values, y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=-100)
+            fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=-100)
         except:
             for_wrapper_param['device_type']='cpu'
             for_wrapper_param['nthread']=-1
             cpu_only = True
-            fgs.fit(X_train.values, y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=100)
+            fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=100)
         '''/home/jclee/Feature_study/mpi_role.py:2079: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider using pd.concat instead.  To get a de-fragmented frame, use `newframe = frame.copy()`'''
         X_train = X_train.iloc[:,fgs.get_selected_features(n_cols)].copy() # in order to avoid highly-defragmented frame
         X_test = X_test.iloc[:,fgs.get_selected_features(n_cols)].copy() # in order to avoid highly-defragmented frame
@@ -2513,6 +2524,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs =  (X_train.append(X_test).sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
+        if 'index' in fs.columns:
+            fs = fs.drop('index', axis=1)
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ##############
@@ -2520,12 +2533,18 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
+        if 'index' in fs.columns:
+            fs = fs.drop('index', axis=1)
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ##############
     final_column_names = X_test.columns.tolist()
-    X_train = X_train.values
-    X_test = X_test.values
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    scaled = scaler.fit(X_train.append(X_test))
+    #
+    X_train = scaled.transform(X_train.values)
+    X_test = scaled.transform(X_test.values)
     y_train = y_train.values
     y_test = y_test.values    
     ################################
