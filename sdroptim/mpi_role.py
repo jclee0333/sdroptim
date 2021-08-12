@@ -1701,6 +1701,14 @@ class ThreadingforFeatureSelection(object):
                 self.original_df = apply_filters(self.original_df, self.filter_based_methods, "original")
             if use_converted:
                 self.generated_df = apply_filters(self.generated_df, self.filter_based_methods, "converted")
+        if use_converted:
+            ### save generated_df (csv)
+            outputfilepath=os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
+            print(">> Saving converted csv .. "+str(outputfilepath))
+            self.generated_df.to_csv(outputfilepath, index=False)
+            os.chmod(outputfilepath, 0o776)
+            print(">> Complete !")
+        ###
         while closed_workers < num_workers :
             # resource allocation (processor acquisition @ READY status)
             status = MPI.Status()
@@ -2105,6 +2113,10 @@ def load_entire_dataset(params, reduce_mem_usage=False):
             dataset = pd.concat( [ pd.read_csv(f) for f in all_parts ] )
         if id_col:
             dataset = dataset.set_index(id_col).sort_index()
+        id_col_generated = gui_params['ml_file_name']+"_index"
+        if id_col_generated in dataset.columns:
+            dataset = dataset.set_index(id_col_generated).sort_index()
+        dataset.index.name=id_col
         print(">> Converted Dataset has loaded successfully.")
         if reduce_mem_usage:
             dataset = reduce_mem_usage_df(dataset)
