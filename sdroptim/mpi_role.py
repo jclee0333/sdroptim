@@ -2489,9 +2489,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         gfs_params['learning_rate']=def_hparams['learning_rate']
         #if use_gpu is not None:
         if use_gpu>=0:
-            gfs_params['device']='gpu'
+            gfs_params['device']='cuda' # 'cuda' instead of 'gpu'
         gfs_params['classification']=True if gui_params['task']=='Classification' else False
-        gfs_params['n_epochs']=5
+        gfs_params['n_epochs']=10
         gfs_params['n_features']=n_cols
         from sklearn.preprocessing import StandardScaler
         scaler = StandardScaler()
@@ -2705,6 +2705,28 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "verbose":-1,
     }
 
+    def_hparams3={ # gpu/normal
+    "gpu_no":gpu_no,
+    "cv":5,
+    "encoding":"ohe",
+    "num_boost_round":1000,
+    "nthread":1,
+    "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
+    "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
+    "boosting_type": "gbdt",
+    "learning_rate":0.001,
+    "max_depth": 11,
+    "num_leaves":31,
+    "colsample_bytree":0.5,
+    "subsample":0.5,
+    "max_bin":255,
+    "reg_alpha":0.0,
+    "reg_lambda":0.0,
+    "min_child_weight": 6,
+    "min_child_samples":20,
+    "verbose":-1,
+    }
+
     ##############################################################
     while True:
         comm.send(None, dest=0, tag=tags.READY)
@@ -2718,7 +2740,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
+            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams3) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
             #
