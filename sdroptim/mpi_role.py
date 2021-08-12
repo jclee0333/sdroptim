@@ -1079,9 +1079,12 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                           trans_primitives=methods[1],
                           where_primitives=[], seed_features=[],
                           max_depth=2, verbose=0)
+    ### fix index range
+    fm.index = df.index
+    fm.index.name = index_name
     try:
         outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
-        fm.to_csv(outputfilepath, index=True)
+        fm.reset_index().to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ### save entity relationships
         return True
@@ -1905,7 +1908,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             if df_merged is not None:
                 #try:
                 outputfilepath=data[2]#+"_update"
-                df_merged.to_csv(outputfilepath, index=True)
+                df_merged.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
                 print(str(data[1])+" -> "+str(data[2])+ "(merge done!)")
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
@@ -2437,7 +2440,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     else: # if None or NaN
         n_cols = n_features
     ################################
-    labels = labels.loc[sorted(list(set(dataset.index)&set(labels.index)))]
+    labels = labels.loc[sorted(list(set(dataset.index)&set(labels.index)))] ## 0811 이게 동작을 안하나??
     global label_names
     label_names = labels[target_col].unique()
     LightGBM_num_boost_round = def_hparams['num_boost_round']
