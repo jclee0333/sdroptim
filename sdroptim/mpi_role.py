@@ -487,6 +487,8 @@ def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True af
             agg = []
         if trans is None:
             trans = []
+        if agg+trans == []:
+            group_no = 1 # no need to split groups for autofe
         if group_no == 1:
             if dataset:
                 for d in dataset:
@@ -1526,7 +1528,7 @@ class ThreadingforMergeCSVsRank0(object):
                     if self.multiple_group_each_sub == []:
                         self.finished_job.append( (target_df_group, target_df_filename) )
                         # finally rank 0 will be terminated
-                        for i in range(1, self.comm.size):
+                        for i in range(0, self.comm.size):
                             self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                         print(">>> (UPDATE) History generated as "+'fm_'+self.title+'__output_list.csv')
                         res = pd.DataFrame(self.finished_job, columns = ['finished_subgroup','filename'])
@@ -1608,7 +1610,7 @@ class ThreadingforMergeCSVsRank0(object):
                 # 1. 단일 데이터 그룹의 파일이 있는데({G0}),
                 # 2. 해당 데이터를 이용한 업데이트가 필요없다면, 타겟이 되는 컬럼이 같은 복수의 데이터 그룹(Multiple_group_each_sub)자체가 아예 존재하지 않는
                 # 3. single-job 형태일 것이므로, 아래와 같이 직접 처리
-                for i in range(1, self.comm.size):
+                for i in range(0, self.comm.size):
                     self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                 unique_group_no=pd.Series(self.subgroup_df['group_no'].unique())
                 final_output_file_names=['fm_'+self.title+'__G'+str(x)+'.csv'for x in unique_group_no]
@@ -1631,7 +1633,7 @@ class ThreadingforMergeCSVsRank0(object):
         else:
             # 1. 단일 데이터 그룹의 파일이 없다면({ }),
             # 2. 타겟이 되는 컬럼이 같은 복수의 데이터 그룹(Multiple_group_each_sub)자체 최종 결과물이므로 아래와 같이 처리
-            for i in range(1, self.comm.size):
+            for i in range(0, self.comm.size):
                 self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
             unique_group_no=pd.Series(self.subgroup_df['group_no'].unique())
             final_output_file_names=['fm_'+self.title+'__G'+str(x)+'.csv'for x in unique_group_no]
