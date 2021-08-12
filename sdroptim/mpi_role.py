@@ -1576,7 +1576,7 @@ class ThreadingforMergeCSVsRank0(object):
                                 data_csv = self.df.iloc[index_range[0]:index_range[1]+1]
                                 ##
                                 self.finished_job.append((target_subgroup ,target_filename))
-                                self.comm.send([data_csv, target_subgroup, target_filename], dest=source, tag=self.tags.START) # allow to train (1)
+                                self.comm.send([data_csv, single_group_each_sub[0], target_filename], dest=source, tag=self.tags.START) # allow to train (1)
                             else: # empty subgrouplist
                                 self.comm.send(None,dest=source, tag=self.tags.EXIT_REQ)
                                 #if source != 0:
