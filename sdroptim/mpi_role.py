@@ -1703,7 +1703,7 @@ class ThreadingforFeatureSelection(object):
                 self.generated_df = apply_filters(self.generated_df, self.filter_based_methods, "converted")
         if use_converted:
             ### save generated_df (csv)
-            outputfilepath=os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
+            outputfilepath=os.path.join(self.gui_params['ml_file_path'],'converted_'+self.gui_params['ml_file_name'])
             print(">> Saving converted csv .. "+str(outputfilepath))
             self.generated_df.to_csv(outputfilepath, index=False)
             os.chmod(outputfilepath, 0o776)
