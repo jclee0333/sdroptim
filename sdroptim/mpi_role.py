@@ -285,6 +285,11 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
                         target_to_load['filepath'], 
                         #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
                         )
+                #### filtering based on selected input columns
+                input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                each_df = each_df[filtered_cols.values()]
+                ####
                 ################
                 # pre-processing
                 ################
@@ -308,6 +313,10 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
                         target_to_load['filepath'], 
                         #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
                         )
+                #### filtering based on selected input columns
+                input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                each_df = each_df[filtered_cols.values()]
                 ################
                 # pre-processing
                 ################
@@ -357,6 +366,11 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
                 row['filepath'], 
                 skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
             each_df.index=range(row['index_range'][0],row['index_range'][1]+1)
+            #### filtering based on selected input columns
+            input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, row['filepath'])
+            filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+            each_df = each_df[filtered_cols.values()]
+            ###
             agg = row['agg']
             trans = row['trans']
             data_list.append((row, each_df))        
@@ -887,7 +901,7 @@ def getDatatypeDict():
                         temp_n_rows = temp_csv_shape[0]
                     dataset.append((temp_filepath, temp_n_rows, temp_has_header))
 
-def getColumnNamesandVariableTypes(gui_params, targetfilename=None):
+def getColumnNamesandVariableTypes_old(gui_params, targetfilename=None):
     input_columns_index_and_name = {}
     output_columns_index_and_name = {}
     datatype_of_columns = {}
@@ -904,6 +918,47 @@ def getColumnNamesandVariableTypes(gui_params, targetfilename=None):
                 if "datatype_of_columns" in gui_params:
                     datatype_of_columns = gui_params['datatype_of_columns']
     return input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns
+
+def getColumnNamesandVariableTypes(gui_params, targetfilename=None): # modified 0817
+    input_columns_index_and_name = {}
+    output_columns_index_and_name = {}
+    datatype_of_columns = {}
+    if 'ml_file_path' in gui_params:
+        if 'ml_file_name' in gui_params:
+            base_filepath = os.path.join(gui_params['ml_file_path'], gui_params['ml_file_name'])
+            if not targetfilename: 
+                targetfilename = base_filepath
+                base = True
+            else:
+                if base_filepath == targetfilename:
+                    base = True
+                else:
+                    base = False
+            ###
+            if base:
+                if "input_columns_index_and_name" in gui_params:
+                    input_columns_index_and_name=gui_params["input_columns_index_and_name"]
+                if "output_columns_index_and_name" in gui_params:
+                    output_columns_index_and_name=gui_params["output_columns_index_and_name"]
+                if "datatype_of_columns" in gui_params:
+                    datatype_of_columns = gui_params['datatype_of_columns']
+            else:
+                if 'additional_files' in gui_params:
+                    for i in range(len(gui_params['additional_files'])):
+                        if 'ml_file_path' in gui_params['additional_files'][i]:
+                            if 'ml_file_name' in gui_params['additional_files'][i]:
+                                temp_filepath = os.path.join(gui_params['additional_files'][i]['ml_file_path'], gui_params['additional_files'][i]['ml_file_name'])
+                                if temp_filepath == targetfilename:
+                                    if "input_columns_index_and_name" in gui_params['additional_files'][i]:
+                                        input_columns_index_and_name=gui_params['additional_files'][i]["input_columns_index_and_name"]
+                                    if "output_columns_index_and_name" in gui_params['additional_files'][i]:
+                                        output_columns_index_and_name=gui_params['additional_files'][i]["output_columns_index_and_name"]
+                                    if "datatype_of_columns" in gui_params['additional_files'][i]:
+                                        datatype_of_columns = gui_params['additional_files'][i]['datatype_of_columns']
+                                    break
+    return input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns
+
+
 
 def recursiveFindColumnNamesandVariableTypes(gui_params, targetfilename):
     ic = {}
@@ -2085,6 +2140,10 @@ def load_origin_dataset(params):
     if os.path.exists(base_filepath):
         id_col, target_col = get_id_cols(gui_params)
         original_dataset = pd.read_csv(base_filepath)
+        #### filtering based on selected input columns
+        input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params)
+        filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+        original_dataset = original_dataset[filtered_cols.values()]
         print(">> Original dataset has loaded successfully.")
         if id_col:
             original_dataset = original_dataset.set_index(id_col).sort_index()
