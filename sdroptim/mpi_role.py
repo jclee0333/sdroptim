@@ -2430,6 +2430,7 @@ def plot_feature_importance(fi_df, fi_title):
                 x='value',
                 y='Feature',
                 color='value',
+                orientation='h',
                 title='Feature Importances: '+fi_title,
                 labels={"value":"LightGBM Features (avg over folds)", "Feature":"Feature"},
                 color_continuous_scale='sunsetdark',
@@ -2695,6 +2696,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         avg_clf_fi = clf.feature_importance()    #
     ##############
     fi_df = pd.DataFrame({'value':avg_clf_fi, 'Feature': final_column_names}).sort_values(by="value",ascending=False)
+    fi_csv_path = outputfilepath.split('.csv')[0]+'_FI.csv'
+    fi_df.to_csv(fi_csv_path, index=False)
+    os.chmod(fi_csv_path, 0o776)
     from plotly.offline import plot as offplot
     fi_title = outputfilepath + " ( "+("-" if wrapper is None else wrapper)+ " / " + str(n_cols) + " cols.)"
     fi_figure = plot_feature_importance(fi_df, fi_title)
