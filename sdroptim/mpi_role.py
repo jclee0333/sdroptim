@@ -1975,7 +1975,7 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             if df_merged is not None:
                 #try:
                 outputfilepath=data[2]#+"_update"
-                df_merged.to_csv(outputfilepath, index=False)
+                df_merged.to_csv(outputfilepath, index=True)
                 os.chmod(outputfilepath, 0o776)
                 print(str(data[1])+" -> "+str(data[2])+ "(merge done!)")
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
