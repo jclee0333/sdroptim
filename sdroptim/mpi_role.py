@@ -1138,7 +1138,7 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                           max_depth=2, verbose=0)
     ### fix index range
     fm.index = df.index
-    fm.index.name = index_name
+    fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
     try:
         outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
         fm.reset_index().to_csv(outputfilepath, index=False)
@@ -1845,8 +1845,10 @@ def merge_df_a_and_b(two_dfs):
     except:
         # when pandas bug
         mid = list(set(base_df.index) & set(target_df.index))
-        base_df = base_df.iloc[mid]
-        target_df = target_df.iloc[mid]
+        #base_df = base_df.iloc[mid]
+        #target_df = target_df.iloc[mid]
+        base_df = base_df.loc[mid]
+        target_df = target_df.loc[mid]
         res = base_df.transpose().append(target_df.transpose()).transpose()
     return res
 
