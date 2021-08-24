@@ -1749,10 +1749,11 @@ class ThreadingforFeatureSelection(object):
         use_original  = False if self.original_df is None else True
         use_converted = False if self.generated_df is None else True
         self.fs_job_list, self.filter_based_methods = get_fs_chunk_by_metadata(params=self.gui_params, labels=self.labels, use_original=use_original, use_converted=use_converted)
-        self.n_job = len(self.fs_job_list)
-        self.remaining_fs_job_list = self.fs_job_list.copy()
-        if self.remaining_fs_job_list is None:
+        if self.fs_job_list is None:
             self.comm.Abort() # nothing to do
+        else:
+            self.n_job = len(self.fs_job_list)
+            self.remaining_fs_job_list = self.fs_job_list.copy()
         if self.filter_based_methods: # not null
             if use_original:
                 self.original_df = apply_filters(self.original_df, self.filter_based_methods, "original")
