@@ -2445,14 +2445,15 @@ def plot_model_scores(results_with_score, fs_title):
     import plotly.io as pio
     import plotly.express as px
     pio.renderers.default = 'colab'
-    fig = px.bar(results_with_score.reset_index(),
-                x='index',
+    fig = px.bar(results_with_score,
+                x='group_no',
                 y='score',
                 text='n_cols',
                 color='base_df',
                 title='Scores: '+fs_title,
-                hover_data=['base_df', 'group_no','wrapper', 'param_value', 'n_cols', 'score'],
-                labels={"index":"LightGBM Models", "score":"Performance Score"},
+                hover_data=['score', 'base_df', 'group_no','wrapper', 'n_cols'],
+                labels={"group_no":"Group Number", "score":"Performance Score",
+                "base_df":"Dataframe", "n_cols":"Selected Columns", "wrapper":"Wrapper Type" },
     )
     fig.update_traces(textposition='outside')
     minv = results_with_score.score.min()
