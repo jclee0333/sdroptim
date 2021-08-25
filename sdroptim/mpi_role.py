@@ -350,7 +350,8 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
                     each_df = each_loaded[1]
                     founded = True
             if not founded:
-                raise ValueError("Load failed!")
+                #raise ValueError("Load failed!")
+                pass # ignore redundant csv files (not to load)
             else:
                 agg = row['agg']
                 trans = row['trans']
