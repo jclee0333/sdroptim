@@ -269,95 +269,120 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
     loaded = []
     each_df_name = "each_df"
     current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+    # 즉 관계가 있는데 base랑 무관하게 있다면..
     if ordered_relationships:
+        # check base file relationships
+        founded = False
         for each_relationship in ordered_relationships:
-            # load parent
-            target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['parent'][0]].iloc[0]
-            if target_to_load['filepath'] not in [x[0] for x in loaded]:
-                print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
-                if target_to_load['index_range'] != (-1, -1):
-                    each_df = pd.read_csv(
-                        target_to_load['filepath'], 
-                        skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
-                    each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+            if each_relationship['parent'][0] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+                founded = True
+        if founded:
+            for each_relationship in ordered_relationships:
+                # load parent
+                target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['parent'][0]].iloc[0]
+                if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                    if target_to_load['index_range'] != (-1, -1):
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                        each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                    else:
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                            )
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ####
+                    ################
+                    # pre-processing
+                    ################
+                    prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                    if prep_res_dict:
+                        for k, v in prep_res_dict.items():
+                            exec(each_df_name +'='+v.replace(k,each_df_name))
+                    ################
+                    loaded.append([target_to_load['filepath'], each_df])
+                # load child
+                target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['child'][0]].iloc[0]
+                if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                    if target_to_load['index_range'] != (-1, -1):
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                        each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                    else:
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                            )
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ################
+                    # pre-processing
+                    ################
+                    prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                    if prep_res_dict:
+                        for k, v in prep_res_dict.items():
+                            exec(each_df_name +'='+v.replace(k,each_df_name))
+                    ################
+                    loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
+                # join via relation key
+                if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
+                    for parent_index in range(len(loaded)):
+                        if loaded[parent_index][0]==each_relationship['parent'][0]:
+                            break
+                    for child_index in range(len(loaded)):
+                        if loaded[child_index][0]==each_relationship['child'][0]:
+                            break
+                    parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
+                    child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
+                    shaped = list(set(parent_index_values) & set(child_index_values))
+                    child_rows_prev = loaded[child_index][1].shape[0] # rows
+                    loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
+                    child_rows_curr = loaded[child_index][1].shape[0] # rows
+                    print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
+                    gc.collect()
+            #####################
+            for _index, row in specific_data_chunk_to_consume.iterrows():
+                founded = False
+                for each_loaded in loaded:
+                    if row['filepath'] == each_loaded[0]:
+                        each_df = each_loaded[1]
+                        founded = True
+                if not founded:
+                    #raise ValueError("Load failed!")
+                    pass # ignore redundant csv files (not to load)
                 else:
+                    agg = row['agg']
+                    trans = row['trans']
+                    data_list.append((row, each_df))
+            del loaded
+            gc.collect()
+        else: # retrieve basefile dataset only
+            data_list = []
+            current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+            for _index, row in specific_data_chunk_to_consume.iterrows():
+                if row['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+row['filepath']+" "+str(row['index_range'])+" / "+str(row['full_range'])+" on processor "+str(processor))
                     each_df = pd.read_csv(
-                        target_to_load['filepath'], 
-                        #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
-                        )
-                #### filtering based on selected input columns
-                input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
-                filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
-                each_df = each_df[filtered_cols.values()]
-                ####
-                ################
-                # pre-processing
-                ################
-                prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
-                if prep_res_dict:
-                    for k, v in prep_res_dict.items():
-                        exec(each_df_name +'='+v.replace(k,each_df_name))
-                ################
-                loaded.append((target_to_load['filepath'], each_df))
-            # load child
-            target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['child'][0]].iloc[0]
-            if target_to_load['filepath'] not in [x[0] for x in loaded]:
-                print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
-                if target_to_load['index_range'] != (-1, -1):
-                    each_df = pd.read_csv(
-                        target_to_load['filepath'], 
-                        skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
-                    each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
-                else:
-                    each_df = pd.read_csv(
-                        target_to_load['filepath'], 
-                        #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
-                        )
-                #### filtering based on selected input columns
-                input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
-                filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
-                each_df = each_df[filtered_cols.values()]
-                ################
-                # pre-processing
-                ################
-                prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
-                if prep_res_dict:
-                    for k, v in prep_res_dict.items():
-                        exec(each_df_name +'='+v.replace(k,each_df_name))
-                ################
-                loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
-            # join via relation key
-            if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
-                for parent_index in range(len(loaded)):
-                    if loaded[parent_index][0]==each_relationship['parent'][0]:
-                        break
-                for child_index in range(len(loaded)):
-                    if loaded[child_index][0]==each_relationship['child'][0]:
-                        break
-                parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
-                child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
-                shaped = list(set(parent_index_values) & set(child_index_values))
-                child_rows_prev = loaded[child_index][1].shape[0] # rows
-                loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
-                child_rows_curr = loaded[child_index][1].shape[0] # rows
-                print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
-                gc.collect()
-        #####################
-        for _index, row in specific_data_chunk_to_consume.iterrows():
-            founded = False
-            for each_loaded in loaded:
-                if row['filepath'] == each_loaded[0]:
-                    each_df = each_loaded[1]
-                    founded = True
-            if not founded:
-                #raise ValueError("Load failed!")
-                pass # ignore redundant csv files (not to load)
-            else:
-                agg = row['agg']
-                trans = row['trans']
-                data_list.append((row, each_df))
-        del loaded
-        gc.collect()
+                        row['filepath'], 
+                        skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                    each_df.index=range(row['index_range'][0],row['index_range'][1]+1)
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, row['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ###
+                    agg = row['agg']
+                    trans = row['trans']
+                    data_list.append((row, each_df))        
     else:
         data_list = []
         current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
@@ -1088,67 +1113,146 @@ def AutoFeatureGeneration_old_using_fullpath(datasetlist, methods, gui_params, c
     except:
         return False
 
-def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
-    import featuretools as ft
-    import os
+def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships, gui_params): # add gui_params for pre_processing 210708
+    import gc
     import pandas as pd
-    if "autofe_system_attr" in gui_params:
-        if "title" in gui_params['autofe_system_attr']:
-            title = gui_params['autofe_system_attr']['title']
-        else:
-            title = ""
-    es = ft.EntitySet(id=title)
-    #################################### 1. Entity load
-    y = pd.Series()
-    for each_df in datasetlist:
-        df = each_df[1]
-        ic, oc, vt=recursiveFindColumnNamesandVariableTypes(gui_params,each_df[0]['filepath'])
-        if oc:
-            for k, y_colname in oc.items():
-                y = each_df[1][y_colname].copy()
-                y_original_filepath = each_df[0]['filepath']
-                df = each_df[1].drop(columns=[y_colname])         #### split target column if exists
-        #
-        index_key, index_name = getColumnNameforSpecificType(ic, vt, "Index", each_df[0]['filepath'])
-        if index_key: # Entities with a unique index
-            make_index = False
-        else:
-            make_index = True
-            index_name = os.path.basename(each_df[0]['filepath'])+'_index'
-        vtypes = getFeaturetoolsVariableTypesDict(ic, vt, make_index, index_name)  # get variable types dict by using datasetlist and gui_params
-        ####
-        os.path.basename(each_df[0]['filepath'])
-        es = es.entity_from_dataframe(entity_id=os.path.basename(each_df[0]['filepath']), dataframe=df,
-            make_index=make_index,
-            index=index_name,
-            variable_types=vtypes)
-    #################################### 2. Add Relationships
-    if "autofe_system_attr" in gui_params:
-        if 'relationships' in gui_params['autofe_system_attr']:
-            if len(gui_params['autofe_system_attr']['relationships'])>0:
-                relationships = []
-                for each in gui_params['autofe_system_attr']['relationships']:
-                    if 'parent' and 'child' in each:
-                        relationships.append(ft.Relationship(es[os.path.basename(each['parent'][0])][os.path.basename(each['parent'][1])], es[os.path.basename(each['child'][0])][os.path.basename(each['child'][1])]))
-                es = es.add_relationships(relationships)
-    ##################################### 3. Do Deep Feature Synthesis
-    fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
-                          agg_primitives=methods[0],
-                          trans_primitives=methods[1],
-                          where_primitives=[], seed_features=[],
-                          max_depth=2, verbose=0)
-    ### fix index range
-    fm.index = df.index
-    fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
-    try:
-        outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
-        fm.reset_index().to_csv(outputfilepath, index=False)
-        os.chmod(outputfilepath, 0o776)
-        ### save entity relationships
-        return True
-    except:
-        print("[ERR] AutoFE did not work, so the feature matrix cannot be generated. Please check datatypes of dataframe and relationships among them.")
-        return False
+    import numpy as np
+    data_list = []
+    loaded = []
+    each_df_name = "each_df"
+    current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+    # 즉 관계가 있는데 base랑 무관하게 있다면..
+    if ordered_relationships:
+        # check base file relationships
+        founded = False
+        for each_relationship in ordered_relationships:
+            if each_relationship['parent'][0] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+                founded = True
+        if founded:
+            for each_relationship in ordered_relationships:
+                # load parent
+                target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['parent'][0]].iloc[0]
+                if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                    if target_to_load['index_range'] != (-1, -1):
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                        each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                    else:
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                            )
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ####
+                    ################
+                    # pre-processing
+                    ################
+                    prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                    if prep_res_dict:
+                        for k, v in prep_res_dict.items():
+                            exec(each_df_name +'='+v.replace(k,each_df_name))
+                    ################
+                    loaded.append([target_to_load['filepath'], each_df])
+                # load child
+                target_to_load = specific_data_chunk_to_consume[specific_data_chunk_to_consume['filepath']==each_relationship['child'][0]].iloc[0]
+                if target_to_load['filepath'] not in [x[0] for x in loaded]:
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+target_to_load['filepath']+" "+str(target_to_load['index_range'])+" / "+str(target_to_load['full_range'])+" on processor "+str(processor))
+                    if target_to_load['index_range'] != (-1, -1):
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            skiprows=get_skiprows_for_partial_reading_csv(target_to_load['has_header'], target_to_load['index_range'], target_to_load['full_range']))
+                        each_df.index=range(target_to_load['index_range'][0],target_to_load['index_range'][1]+1)
+                    else:
+                        each_df = pd.read_csv(
+                            target_to_load['filepath'], 
+                            #skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                            )
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, target_to_load['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ################
+                    # pre-processing
+                    ################
+                    prep_res_dict = preprocessing_dict(gui_params, target_to_load['filepath'])
+                    if prep_res_dict:
+                        for k, v in prep_res_dict.items():
+                            exec(each_df_name +'='+v.replace(k,each_df_name))
+                    ################
+                    loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
+                # join via relation key
+                if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
+                    for parent_index in range(len(loaded)):
+                        if loaded[parent_index][0]==each_relationship['parent'][0]:
+                            break
+                    for child_index in range(len(loaded)):
+                        if loaded[child_index][0]==each_relationship['child'][0]:
+                            break
+                    parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
+                    child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
+                    shaped = list(set(parent_index_values) & set(child_index_values))
+                    child_rows_prev = loaded[child_index][1].shape[0] # rows
+                    loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
+                    child_rows_curr = loaded[child_index][1].shape[0] # rows
+                    print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
+                    gc.collect()
+            #####################
+            for _index, row in specific_data_chunk_to_consume.iterrows():
+                founded = False
+                for each_loaded in loaded:
+                    if row['filepath'] == each_loaded[0]:
+                        each_df = each_loaded[1]
+                        founded = True
+                if not founded:
+                    #raise ValueError("Load failed!")
+                    pass # ignore redundant csv files (not to load)
+                else:
+                    agg = row['agg']
+                    trans = row['trans']
+                    data_list.append((row, each_df))
+            del loaded
+            gc.collect()
+        else: # retrieve basefile dataset only
+            data_list = []
+            current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+            for _index, row in specific_data_chunk_to_consume.iterrows():
+                if row['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+                    print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+row['filepath']+" "+str(row['index_range'])+" / "+str(row['full_range'])+" on processor "+str(processor))
+                    each_df = pd.read_csv(
+                        row['filepath'], 
+                        skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+                    each_df.index=range(row['index_range'][0],row['index_range'][1]+1)
+                    #### filtering based on selected input columns
+                    input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, row['filepath'])
+                    filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+                    each_df = each_df[filtered_cols.values()]
+                    ###
+                    agg = row['agg']
+                    trans = row['trans']
+                    data_list.append((row, each_df))        
+    else:
+        data_list = []
+        current_group_no = specific_data_chunk_to_consume['group_no'].values[0]
+        for _index, row in specific_data_chunk_to_consume.iterrows():
+            print("loading.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+row['filepath']+" "+str(row['index_range'])+" / "+str(row['full_range'])+" on processor "+str(processor))
+            each_df = pd.read_csv(
+                row['filepath'], 
+                skiprows=get_skiprows_for_partial_reading_csv(row['has_header'], row['index_range'], row['full_range']))
+            each_df.index=range(row['index_range'][0],row['index_range'][1]+1)
+            #### filtering based on selected input columns
+            input_columns_index_and_name, output_columns_index_and_name, datatype_of_columns = getColumnNamesandVariableTypes(gui_params, row['filepath'])
+            filtered_cols = dict(input_columns_index_and_name, **output_columns_index_and_name)
+            each_df = each_df[filtered_cols.values()]
+            ###
+            agg = row['agg']
+            trans = row['trans']
+            data_list.append((row, each_df))        
+    return data_list, (agg, trans), current_group_no
 
 def mergeAllSubgroupCSVs(gui_params):
     # find current exist groups
