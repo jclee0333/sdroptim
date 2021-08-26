@@ -1059,6 +1059,11 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     import featuretools as ft
     import os
     import pandas as pd
+    if "autofe_system_attr" in gui_params:
+        if "title" in gui_params['autofe_system_attr']:
+            title = gui_params['autofe_system_attr']['title']
+        else:
+            title = ""
     es = ft.EntitySet(id=title)
     #################################### 1. Entity load
     y = pd.Series()
