@@ -1108,7 +1108,7 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                         if all(x in loaded_files for x in relationship_files):
                             relationships.append(ft.Relationship(es[os.path.basename(each['parent'][0])][os.path.basename(each['parent'][1])], es[os.path.basename(each['child'][0])][os.path.basename(each['child'][1])]))
                 if relationships:
-                    print(relationships)
+                    #print(relationships)
                     es = es.add_relationships(relationships)
     ##################################### 3. Do Deep Feature Synthesis
     fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
