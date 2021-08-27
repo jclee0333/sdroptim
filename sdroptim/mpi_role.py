@@ -20,6 +20,7 @@ from sdroptim.searching_strategies import stepwise_get_current_step_by_time, n_i
 from sdroptim.searching_strategies import _init_seed_fix_torch
 from sdroptim.searching_strategies import find_linear
 from sdroptim.searching_strategies import stepwise_guided_mpi_by_time, ModObjectiveFunctionWrapper, params_sorting_by_guided_list
+from gpuinfo import GPUInfo
 
 guided_importance_order = ['lr', 'epoch','batch_size','decay', 'momentum']
 
@@ -2853,48 +2854,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     gpu_no = abs((rank-1)%2-1)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_no)#str(rank - 1)
     ##############################################################
-    def_hparams={ # cpu/small
-    "cv":5,
-    "encoding":"ohe",
-    "num_boost_round":100,
-    "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
-    "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
-    "boosting_type": "gbdt",
-    "learning_rate":0.01,
-    "max_depth": 11,
-    "num_leaves":58,
-    "colsample_bytree":0.613,
-    "subsample":0.708,
-    "max_bin":407,
-    "reg_alpha":3.564,
-    "reg_lambda":4.930,
-    "min_child_weight": 6,
-    "min_child_samples":165,
-    "verbose":-1,
-    }
-    def_hparams2={ # gpu/large
-    "gpu_no":gpu_no,
-    "cv":5,
-    "encoding":"ohe",
-    "num_boost_round":1000,
-    "nthread":1,
-    "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
-    "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
-    "boosting_type": "gbdt",
-    "learning_rate":0.01,
-    "max_depth": -1,
-    "num_leaves":31,
-    "colsample_bytree":1.0,
-    "subsample":1.0,
-    "max_bin":255,
-    "reg_alpha":0.0,
-    "reg_lambda":0.0,
-    "min_child_weight": 1e-3,
-    "min_child_samples":20,
-    "verbose":-1,
-    }
-
-    def_hparams3={ # gpu/normal
+    def_hparams={ # gpu/normal
     "gpu_no":gpu_no,
     "cv":5,
     "encoding":"ohe",
@@ -2915,7 +2875,21 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "min_child_samples":20,
     "verbose":-1,
     }
-
+    ############################# default system conf. in slurm workers
+    maximum_cores_per_a_node = 30
+    maximum_gpus_per_a_node  =  2
+    #GPUInfo.get_info()[0]
+    #{'16771': ['0'], '16772': ['0'], '16774': ['0'], '16773': ['1'], '16775': ['1'], '16805': ['1']}
+    #############################
+    gpu_available = False
+    for i in range(maximum_gpus_per_a_node):
+        if rank%maximum_cores_per_a_node == i:
+            curr_n_gpu_process = len(GPUInfo.get_info()[0])
+            if curr_n_gpu_process < maximum_gpus_per_a_node:
+                gpu_available = True
+    if not gpu_available:
+        if 'gpu_no' in def_hparams:
+            tmp=def_hparams.pop('gpu_no',None)
     ##############################################################
     while True:
         comm.send(None, dest=0, tag=tags.READY)
@@ -2929,7 +2903,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams3) # lightgbm params for cpus..
+            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
             #
