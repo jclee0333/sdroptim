@@ -2786,7 +2786,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     if cpu_only == False:
         if use_gpu >=0:
             code=code.replace("'cpu'", "'gpu'")
-            code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n")
+            code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n    'nthread':1,\n")
     try:
         #print(code)
         exec(code, globals())
@@ -2860,7 +2860,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
-    "nthread":1,
+    "nthread":-1,
     "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
     "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
     "boosting_type": "gbdt",
