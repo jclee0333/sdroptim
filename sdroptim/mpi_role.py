@@ -1071,7 +1071,6 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     base_index = None
     for each_df in datasetlist:
         # store base index
-        print( each_df[0]['filepath'] , os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']))
         if each_df[0]['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
             base_index = each_df[1].index.copy()
         #
@@ -1091,7 +1090,6 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
             index_name = os.path.basename(each_df[0]['filepath'])+'_index'
         vtypes = getFeaturetoolsVariableTypesDict(ic, vt, make_index, index_name)  # get variable types dict by using datasetlist and gui_params
         ####
-        #os.path.basename(each_df[0]['filepath'])
         es = es.entity_from_dataframe(entity_id=os.path.basename(each_df[0]['filepath']), dataframe=df,
             make_index=make_index,
             index=index_name,
@@ -1119,16 +1117,19 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                           max_depth=2, verbose=0)
     ### fix index range
     fm.index = base_index
-    fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
+    if make_index:
+        fm.index.name=index_name
+    else:
+        fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
     try:
         outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
         fm.reset_index().to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ### save entity relationships
-        #return True
+        return True
     except:
         print("[ERR] AutoFE did not work, so the feature matrix cannot be generated. Please check datatypes of dataframe and relationships among them.")
-        #return False
+        return False
 
 def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships, gui_params): # add gui_params for pre_processing 210708
     import gc
