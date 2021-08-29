@@ -2893,6 +2893,10 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
             tmp=def_hparams.pop('gpu_no',None)
     ##############################################################
     while True:
+        ### 월요일 추가테스트 필요
+        if not gpu_available:
+            comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+        ###
         comm.send(None, dest=0, tag=tags.READY)
         #each_sub = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
         dataset = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
