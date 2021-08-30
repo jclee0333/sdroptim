@@ -1973,6 +1973,8 @@ def merge_df_a_and_b(two_dfs):
         base_df = base_df.loc[mid]
         target_df = target_df.loc[mid]
         res = base_df.transpose().append(target_df.transpose()).transpose()
+    if 'Unnamed: 0' in res.columns:
+        res.drop(['Unnamed: 0'], axis=1, inplace=True)
     return res
 
 def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
@@ -2671,7 +2673,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     features = X_train.columns.tolist()
     target = target_col
     ################################################
-    if (wrapper == "GradientFeatureSelector") and (n_cols > 1):
+    if (wrapper == "GradientFeatureSelector") and (n_cols >= 1):
         from nni.algorithms.feature_engineering.gradient_selector import FeatureGradientSelector
         gfs_params={}
         gfs_params['learning_rate']=def_hparams['learning_rate']
