@@ -2593,10 +2593,10 @@ def plot_output_scores_html(metadata_json):
     FINISHED = False
     if len(jsonpaths)==2:
         status_file = os.path.join(jsonpaths[0],'status')
-            if os.path.exists(status_file):
-                with open(status_file) as f:
-                    s=f.read()
-                    FINISHED = s.startswith('FINISHED') # True if finished
+        if os.path.exists(status_file):
+            with open(status_file) as f:
+                s=f.read()
+                FINISHED = s.startswith('FINISHED') # True if finished
     if not FINISHED:
         title=""
         res = False
