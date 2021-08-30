@@ -2855,7 +2855,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     gpu_no = abs((rank-1)%2-1)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_no)#str(rank - 1)
     ##############################################################
-    def_hparams={ # gpu/normal
+    def_hparams_gpu={ # gpu/normal
     "gpu_no":gpu_no,
     "cv":5,
     "encoding":"ohe",
@@ -2870,6 +2870,27 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "colsample_bytree":0.5,
     "subsample":0.5,
     "max_bin":255,
+    "reg_alpha":0.0,
+    "reg_lambda":0.0,
+    "min_child_weight": 6,
+    "min_child_samples":20,
+    "verbose":-1,
+    }
+    def_hparams={ # cpu/normal
+    #"gpu_no":0,
+    "cv":5,
+    "encoding":"ohe",
+    "num_boost_round":100,
+    "nthread":-1,
+    "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
+    "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
+    "boosting_type": "gbdt",
+    "learning_rate":0.1,
+    "max_depth": -1,
+    "num_leaves":31,
+    "colsample_bytree":0.5,
+    "subsample":0.5,
+    "max_bin":63,
     "reg_alpha":0.0,
     "reg_lambda":0.0,
     "min_child_weight": 6,
@@ -2894,8 +2915,8 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     ##############################################################
     while True:
         ### 월요일 추가테스트 필요
-        if not gpu_available:
-            comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+        #if not gpu_available: # deprecated 2021-08-30 because of cpu only params
+        #    comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
         ###
         comm.send(None, dest=0, tag=tags.READY)
         #each_sub = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
