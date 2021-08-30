@@ -2589,24 +2589,33 @@ def plot_model_scores(results_with_score, fs_title):
 
 def plot_output_scores_html(metadata_json):
     gui_params=load_metadata(metadata_json)
-    title=""
-    res = False
-    if "autofe_system_attr" in gui_params:
-        if "title" in gui_params['autofe_system_attr']:
-            title = gui_params['autofe_system_attr']['title']
-        else:
-            title = ""
-    if 'autofe_portal_attr' in gui_params:
-        if 'workspaceLocation' in gui_params['autofe_portal_attr']:
-            scores_filepath = os.path.join(gui_params['autofe_portal_attr']['workspaceLocation'],"fs_"+title+"__output_scores.csv")
-            scores_filepath2 = scores_filepath.replace("/science-data/", '/EDISON/SCIDATA/')
-            scores_filepath3 = os.path.basename(scores_filepath)
-            paths = [scores_filepath, scores_filepath2, scores_filepath3]
-            for each_path in paths:
-                if os.path.exists(each_path):
-                    res=make_chart(each_path,title)
-    if res == False:
-        print("Model should be prepared at least one to make html chart. Please wait for seconds...")
+    jsonpaths = os.path.split(metadata_json)
+    FINISHED = False
+    if len(jsonpaths)==2:
+        status_file = os.path.join(jsonpaths[0],'status')
+            if os.path.exists(status_file):
+                with open(status_file) as f:
+                    s=f.read()
+                    FINISHED = s.startswith('FINISHED') # True if finished
+    if not FINISHED:
+        title=""
+        res = False
+        if "autofe_system_attr" in gui_params:
+            if "title" in gui_params['autofe_system_attr']:
+                title = gui_params['autofe_system_attr']['title']
+            else:
+                title = ""
+        if 'autofe_portal_attr' in gui_params:
+            if 'workspaceLocation' in gui_params['autofe_portal_attr']:
+                scores_filepath = os.path.join(gui_params['autofe_portal_attr']['workspaceLocation'],"fs_"+title+"__output_scores.csv")
+                scores_filepath2 = scores_filepath.replace("/science-data/", '/EDISON/SCIDATA/')
+                scores_filepath3 = os.path.basename(scores_filepath)
+                paths = [scores_filepath, scores_filepath2, scores_filepath3]
+                for each_path in paths:
+                    if os.path.exists(each_path):
+                        res=make_chart(each_path,title)
+        if res == False:
+            print("Model should be prepared at least one to make html chart. Please wait for seconds...")
 
 def make_chart(scores_filepath,title):
     results_with_score = pd.read_csv(scores_filepath)
@@ -2621,6 +2630,10 @@ def make_chart(scores_filepath,title):
     os.chmod(score_html_path, 0o776)
     print(":: Model Score html Chart has been generated successfully ::")
     return True
+
+## 2021-08-30 make chart before finishing all job (running status)
+## singularity exec -H ${PWD}:/make_chart/  /EDISON/SCIDATA/singularity-images/userenv python -c "from sdroptim.mpi_role import *;plot_output_scores_html('/make_chart/metadata.json')"
+
 
 def model_score(params, job_to_do, dataset, labels, hparams):
     import copy
