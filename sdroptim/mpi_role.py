@@ -2587,6 +2587,40 @@ def plot_model_scores(results_with_score, fs_title):
     fig.update_yaxes(range=[minv-diffv/2, maxv+diffv/2])
     return fig
 
+def plot_output_scores_html(metadata_json):
+    gui_params=load_metadata(metadata_json)
+    title=""
+    res = False
+    if "autofe_system_attr" in gui_params:
+        if "title" in gui_params['autofe_system_attr']:
+            title = gui_params['autofe_system_attr']['title']
+        else:
+            title = ""
+    if 'autofe_portal_attr' in gui_params:
+        if 'workspaceLocation' in gui_params['autofe_portal_attr']:
+            scores_filepath = os.path.join(gui_params['autofe_portal_attr']['workspaceLocation'],"fs_"+title+"__output_scores.csv")
+            scores_filepath2 = scores_filepath.replace("/science-data/", '/EDISON/SCIDATA/')
+            scores_filepath3 = os.path.basename(scores_filepath)
+            paths = [scores_filepath, scores_filepath2, scores_filepath3]
+            for each_path in paths:
+                if os.path.exists(each_path):
+                    res=make_chart(each_path,title)
+    if res == False:
+        print("Model should be prepared at least one to make html chart. Please wait for seconds...")
+
+def make_chart(scores_filepath,title):
+    results_with_score = pd.read_csv(scores_filepath)
+    from plotly.offline import plot as offplot
+    results_with_score = results_with_score.replace(np.nan, "-")
+    results_with_score = results_with_score.sort_values(by='n_cols')
+    results_with_score.index = pd.Index(range(len(results_with_score)))
+    score_figure = plot_model_scores(results_with_score, title)
+    score_html_path = scores_filepath.split('.csv')[0]+'.html'
+    offplot(score_figure, filename = score_html_path, auto_open=False)
+    print(">>> Scores html has generated as "+'fs_'+title+'__output_scores.html')
+    os.chmod(score_html_path, 0o776)
+    print(":: Model Score html Chart has been generated successfully ::")
+    return True
 
 def model_score(params, job_to_do, dataset, labels, hparams):
     import copy
