@@ -2727,7 +2727,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=-100)
         except:
             for_wrapper_param['device_type']='cpu'
-            for_wrapper_param['nthread']=-1
+            #for_wrapper_param['nthread']=-1 # sometimes too slow -- 20210830
             cpu_only = True
             fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=100)
         '''/home/jclee/Feature_study/mpi_role.py:2079: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider using pd.concat instead.  To get a de-fragmented frame, use `newframe = frame.copy()`'''
@@ -2881,7 +2881,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
-    "nthread":-1,
+    "nthread":4, # large nthread may occur deadlock 20210830
     "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
     "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
     "boosting_type": "gbdt",
