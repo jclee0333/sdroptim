@@ -471,14 +471,15 @@ def get_ordered_relationships(gui_params): # 20210901; selected range using rela
     if 'autofe_system_attr' in gui_params:
         if 'relationships' in gui_params['autofe_system_attr']:
             relationships =  gui_params['autofe_system_attr']['relationships'].copy()
-            graph = make_graph(relationships)
-            bfs_order = bfs(graph, base_filepath)
             ordered_relationships = []
-            while bfs_order:
-                comp = bfs_order.pop(0)
-                for each in relationships:
-                    if each['parent'][0] == comp:
-                        ordered_relationships.append(each)
+            if relationships:
+                graph = make_graph(relationships)
+                bfs_order = bfs(graph, base_filepath)
+                while bfs_order:
+                    comp = bfs_order.pop(0)
+                    for each in relationships:
+                        if each['parent'][0] == comp:
+                            ordered_relationships.append(each)
             return ordered_relationships
 
 def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True after basic development
@@ -1155,7 +1156,7 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     except:
         print("[ERR] AutoFE did not work, so the feature matrix cannot be generated. Please check datatypes of dataframe and relationships among them.")
         return False
-        
+
 def AutoFeatureGeneration_old(datasetlist, methods, gui_params, current_group_no):
     import featuretools as ft
     import os
