@@ -1087,6 +1087,88 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     #################################### 1. Entity load
     y = pd.Series()
     base_index = None
+    base_index_has_generated = False
+    base_index_name = ""
+    for each_df in datasetlist:
+        df = each_df[1]
+        ic, oc, vt=recursiveFindColumnNamesandVariableTypes(gui_params,each_df[0]['filepath'])
+        if oc:
+            for k, y_colname in oc.items():
+                y = each_df[1][y_colname].copy()
+                y_original_filepath = each_df[0]['filepath']
+                df = each_df[1].drop(columns=[y_colname])         #### split target column if exists
+        #
+        index_key, index_name = getColumnNameforSpecificType(ic, vt, "Index", each_df[0]['filepath'])
+        if index_key: # Entities with a unique index
+            make_index = False
+        else:
+            make_index = True
+            index_name = os.path.basename(each_df[0]['filepath'])+'_index'
+        # store base index
+        if each_df[0]['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+            base_index = each_df[1].index.copy()
+            if make_index:
+                # base does not have index
+                base_index_has_generated = True
+                base_index_name = index_name
+        #
+        vtypes = getFeaturetoolsVariableTypesDict(ic, vt, make_index, index_name)  # get variable types dict by using datasetlist and gui_params
+        ####
+        es = es.entity_from_dataframe(entity_id=os.path.basename(each_df[0]['filepath']), dataframe=df,
+            make_index=make_index,
+            index=index_name,
+            variable_types=vtypes)
+    #################################### 2. Add Relationships
+    # check all relationships
+    if "autofe_system_attr" in gui_params:
+        if 'relationships' in gui_params['autofe_system_attr']:
+            if len(gui_params['autofe_system_attr']['relationships'])>0:
+                relationships = []
+                for each in gui_params['autofe_system_attr']['relationships']:
+                    if 'parent' and 'child' in each:
+                        relationship_files = [each['parent'][0], each['child'][0]]
+                        loaded_files = [x[0]['filepath'] for x in datasetlist]
+                        if all(x in loaded_files for x in relationship_files):
+                            relationships.append(ft.Relationship(es[os.path.basename(each['parent'][0])][os.path.basename(each['parent'][1])], es[os.path.basename(each['child'][0])][os.path.basename(each['child'][1])]))
+                if relationships:
+                    #print(relationships)
+                    es = es.add_relationships(relationships)
+    ##################################### 3. Do Deep Feature Synthesis
+    fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
+                          agg_primitives=methods[0],
+                          trans_primitives=methods[1],
+                          where_primitives=[], seed_features=[],
+                          max_depth=2, verbose=0)
+    ### fix index range
+    if base_index_has_generated:
+        fm.index.name = base_index_name
+    fm = fm.reset_index()
+    fm.index = base_index
+    #else:
+    #    fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
+    try:
+        outputfilepath=os.path.join("./", "fm_"+title+"__G"+str(current_group_no)+".csv")
+        fm.to_csv(outputfilepath, index=False)
+        os.chmod(outputfilepath, 0o776)
+        ### save entity relationships
+        return True
+    except:
+        print("[ERR] AutoFE did not work, so the feature matrix cannot be generated. Please check datatypes of dataframe and relationships among them.")
+        return False
+        
+def AutoFeatureGeneration_old(datasetlist, methods, gui_params, current_group_no):
+    import featuretools as ft
+    import os
+    import pandas as pd
+    if "autofe_system_attr" in gui_params:
+        if "title" in gui_params['autofe_system_attr']:
+            title = gui_params['autofe_system_attr']['title']
+        else:
+            title = ""
+    es = ft.EntitySet(id=title)
+    #################################### 1. Entity load
+    y = pd.Series()
+    base_index = None
     for each_df in datasetlist:
         # store base index
         if each_df[0]['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
