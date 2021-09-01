@@ -335,21 +335,35 @@ def data_loader(specific_data_chunk_to_consume, processor, ordered_relationships
                     ################
                     loaded.append([target_to_load['filepath'], each_df]) # use list for reassign instead of tuple
                 # join via relation key
-                if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
-                    for parent_index in range(len(loaded)):
-                        if loaded[parent_index][0]==each_relationship['parent'][0]:
-                            break
-                    for child_index in range(len(loaded)):
-                        if loaded[child_index][0]==each_relationship['child'][0]:
-                            break
-                    parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
-                    child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
-                    shaped = list(set(parent_index_values) & set(child_index_values))
-                    child_rows_prev = loaded[child_index][1].shape[0] # rows
-                    loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
-                    child_rows_curr = loaded[child_index][1].shape[0] # rows
-                    print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
-                    gc.collect()
+                #if each_relationship['parent'][1] == each_relationship['child'][1]: # do only same col_name
+                #    for parent_index in range(len(loaded)):
+                #        if loaded[parent_index][0]==each_relationship['parent'][0]:
+                #            break
+                #    for child_index in range(len(loaded)):
+                #        if loaded[child_index][0]==each_relationship['child'][0]:
+                #            break
+                #    parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
+                #    child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
+                #    shaped = list(set(parent_index_values) & set(child_index_values))
+                #    child_rows_prev = loaded[child_index][1].shape[0] # rows
+                #    loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
+                #    child_rows_curr = loaded[child_index][1].shape[0] # rows
+                #    print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
+                #    gc.collect()
+                for parent_index in range(len(loaded)):
+                    if loaded[parent_index][0]==each_relationship['parent'][0]:
+                        break
+                for child_index in range(len(loaded)):
+                    if loaded[child_index][0]==each_relationship['child'][0]:
+                        break
+                parent_index_values = loaded[parent_index][1][each_relationship['parent'][1]].values # all parent index
+                child_index_values =  loaded[child_index][1][each_relationship['parent'][1]].values # all parent index
+                shaped = list(set(parent_index_values) & set(child_index_values))
+                child_rows_prev = loaded[child_index][1].shape[0] # rows
+                loaded[child_index][1] = loaded[child_index][1][loaded[child_index][1][each_relationship['parent'][1]].isin(shaped)]
+                child_rows_curr = loaded[child_index][1].shape[0] # rows
+                print("reduced.. [G"+str(current_group_no) +"/P"+str(processor)+"] "+loaded[child_index][0]+" from "+str(child_rows_prev)+" rows to "+str(child_rows_curr)+" rows according to index relationships.")
+                gc.collect()                    
             #####################
             for _index, row in specific_data_chunk_to_consume.iterrows():
                 founded = False
