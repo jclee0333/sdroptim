@@ -433,22 +433,37 @@ def get_a_data_chunk_per_group(data_chunk_df, group_number=0, random_pick=True):
     return specific_data_chunk_to_consume, the_rest
 
 ######################################################
-def get_ordered_relationships(gui_params): # 20210706; selected range using relationships
-    def ordering_relationship(remain_relationships, token_file_path, ordered):
-        childs = []
-        for each_relationship in remain_relationships:
-            if each_relationship['parent'][0] == token_file_path:
-                childs.append(each_relationship['child'][0])
-                ordered.append(each_relationship)
-                #print(each_relationship['child'][0], each_relationship)
-                remain_relationships.remove(each_relationship)
-        if childs == []:
-            #print(token_file_path, "is leaf")
-            return []
+
+def make_graph(relationships):
+    graph={}
+    for each in relationships:
+        if each['parent'][0] not in graph.keys():
+            graph.update({each['parent'][0]:[each['child'][0]]})
         else:
-            for each_child in childs:
-                return ordering_relationship(remain_relationships,each_child, ordered)
-    #
+            bags = graph[each['parent'][0]]
+            bags.append(each['child'][0])
+            graph.update({each['parent'][0]:bags})
+        #### pairwise-graph
+        if each['child'][0] not in graph.keys():
+            graph.update({each['child'][0]:[each['parent'][0]]})
+        else:
+            bags = graph[each['child'][0]]
+            bags.append(each['parent'][0])
+            graph.update({each['child'][0]:bags})
+    return graph
+
+def bfs(graph, start_node):
+    visit = list()
+    queue = list()
+    queue.append(start_node)
+    while queue:
+        node = queue.pop(0)
+        if node not in visit:
+            visit.append(node)
+            queue.extend(graph[node])
+    return visit
+
+def get_ordered_relationships(gui_params): # 20210901; selected range using relationships
     base_filepath = ""
     if 'ml_file_path' in gui_params:
         if 'ml_file_name' in gui_params:
@@ -456,12 +471,15 @@ def get_ordered_relationships(gui_params): # 20210706; selected range using rela
     if 'autofe_system_attr' in gui_params:
         if 'relationships' in gui_params['autofe_system_attr']:
             relationships =  gui_params['autofe_system_attr']['relationships'].copy()
-            ordered = []
-            ordering_relationship(relationships, base_filepath, ordered)
-            #print(ordered,relationships)
-            ordered_relationships = ordered+relationships
+            graph = make_graph(relationships)
+            bfs_order = bfs(graph, base_filepath)
+            ordered_relationships = []
+            while bfs_order:
+                comp = bfs_order.pop(0)
+                for each in relationships:
+                    if each['parent'][0] == comp:
+                        ordered_relationships.append(each)
             return ordered_relationships
-###############
 
 def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True after basic development
     import pandas as pd
