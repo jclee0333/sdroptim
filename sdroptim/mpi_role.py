@@ -2651,15 +2651,15 @@ def apply_filters(df, filter_based_methods, df_types):
                 before = df.shape[1]
                 df = ft.selection.remove_low_information_features(df)
                 print("* "+df_types+" <- Remove Low Information Features (at least 2 unique values not null): "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
-            elif each_filter_algorithm == 'remove_highly_null_features':
+            elif (each_filter_algorithm == 'remove_highly_null_features') and (each_filter_algorithm_params):
                 before = df.shape[1]                
                 df = ft.selection.remove_highly_null_features(df, **each_filter_algorithm_params)
                 print("* "+df_types+" <- Remove Highly Null Features: "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
-            elif each_filter_algorithm == 'remove_single_value_features':
+            elif (each_filter_algorithm == 'remove_single_value_features') and (each_filter_algorithm_params):
                 before = df.shape[1]                
                 df = ft.selection.remove_single_value_features(df, **each_filter_algorithm_params)
                 print("* "+df_types+" <- Remove Single Value Features (all the values are the same): "+str(before)+" columns -> "+str(df.shape[1])+" columns.")
-            elif each_filter_algorithm == 'remove_highly_correlated_features':
+            elif (each_filter_algorithm == 'remove_highly_correlated_features') and (each_filter_algorithm_params):
                 ''' too slow when large number of columns --> should run under mp '''
                 before = df.shape[1]
                 df = ft.selection.remove_highly_correlated_features(df, **each_filter_algorithm_params)
