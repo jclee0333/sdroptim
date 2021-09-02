@@ -1150,14 +1150,14 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                     es = es.add_relationships(relationships)
     ##################################### 3. Do Deep Feature Synthesis
     # element-wise calculation is too big to compute (make limitation on the automate process) # 2021-09-02
-    element_wise_methods = ['and','or','add_numeric','divide_numeric','substract_numeric', 'modulo_numeric','multiply_boolean']
-    n_element_wise = len([x for x in methods[0]+methods[1] if x in element_wise_methods])
-    max_depth = 2 if n_element_wise<2 else 1
+    #element_wise_methods = ['and','or','add_numeric','divide_numeric','substract_numeric', 'modulo_numeric','multiply_boolean']
+    #n_element_wise = len([x for x in methods[0]+methods[1] if x in element_wise_methods])
+    #max_depth = 2 if n_element_wise<2 else 1
     fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
                           agg_primitives=methods[0],
                           trans_primitives=methods[1],
                           where_primitives=[], seed_features=[],
-                          max_depth=max_depth, verbose=0)
+                          max_depth=2, verbose=0)
     ### fix index range
     if base_index_has_generated:
         fm.index.name = base_index_name
