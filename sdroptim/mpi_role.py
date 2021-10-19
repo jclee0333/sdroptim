@@ -638,16 +638,18 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
             chunk_list.append(('original',None,None,None))
             if wrapper_based:
                 for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
-                    for individual_params, its_values in each_wrapper_algorithm_params.items():
-                        for value in its_values:
-                            chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
+                    if each_wrapper_algorithm_params is not None: # 20211029 bug fix
+                        for individual_params, its_values in each_wrapper_algorithm_params.items():
+                            for value in its_values:
+                                chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
         if use_converted:
             chunk_list.append(('converted',None,None,None))
             if wrapper_based:
                 for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
-                    for individual_params, its_values in each_wrapper_algorithm_params.items():
-                        for value in its_values:
-                            chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
+                    if each_wrapper_algorithm_params is not None: # 20211029 bug fix
+                        for individual_params, its_values in each_wrapper_algorithm_params.items():
+                            for value in its_values:
+                                chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
         #res.to_csv(outputpath, index=False)
@@ -1973,6 +1975,7 @@ class ThreadingforFeatureSelection(object):
         self.title = ""
         self.finished=False
         self.timeout=False
+        self.probing=False
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True                            # Daemonize thread
         thread.start()                                  # Start the execution
@@ -1983,9 +1986,12 @@ class ThreadingforFeatureSelection(object):
         if "autofe_system_attr" in self.gui_params:
             if "title" in self.gui_params['autofe_system_attr']:
                 self.title = self.gui_params['autofe_system_attr']['title']
+            if "probing" in self.gui_params['autofe_system_attr']:
+                self.probing = True # probing attr. added 20211019
         else:
             self.title = ""        
-        self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
+        if self.probing == False:
+            self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
         self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
         use_original  = False if self.original_df is None else True
         use_converted = False if self.generated_df is None else True
