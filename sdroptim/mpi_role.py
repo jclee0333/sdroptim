@@ -2850,6 +2850,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     target = target_col
     ################################################
     if (wrapper == "GradientFeatureSelector") and (n_cols >= 1):
+        feature_selected = True
         from nni.algorithms.feature_engineering.gradient_selector import FeatureGradientSelector
         gfs_params={}
         gfs_params['learning_rate']=def_hparams['learning_rate']
@@ -2886,6 +2887,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         os.chmod(outputfilepath, 0o776)
         ##############
     elif wrapper == "GBDTSelector":
+        feature_selected = True
         from nni.algorithms.feature_engineering.gbdt_selector import GBDTSelector
         for_wrapper_param = def_hparams.copy()
         if gui_params['task'] == "Classification":
@@ -2923,6 +2925,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         os.chmod(outputfilepath, 0o776)
         ##############
     else:
+        feature_selected = False
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
@@ -2947,7 +2950,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     from sdroptim_client.PythonCodeModulator import getLightGBM
     global clfs
     clfs = []
-    code=getLightGBM(gui_params, num_cv, False, False)
+    code=getLightGBM(gui_params, -1, False, False)
     code=code.replace("DEVICE = 0","")
     code=code.replace("X_train, y_train = train_data[features].values, train_data[target].values","")
     code=code.replace("X_test, y_test = test_data[features].values, test_data[target].values","")
@@ -2966,7 +2969,8 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             code=code.replace("'cpu'", "'gpu'")
             code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n    'nthread':1,\n")
     try:
-        #print(code)
+        if not feature_selected:
+            print(code)
         exec(code, globals())
     except:
         code=code.replace("'gpu'", "'cpu'")
