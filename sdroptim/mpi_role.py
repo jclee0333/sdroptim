@@ -3074,6 +3074,27 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "min_child_samples":20,
     "verbose":-1,
     }
+    def_hparams_small={ # cpu/normal
+    #"gpu_no":0,
+    #"cv":5,
+    "encoding":"ohe",
+    "num_boost_round":100,
+    #"nthread":4, # large nthread may occur deadlock 20210830
+    "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
+    "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
+    #"boosting_type": "gbdt",
+    "learning_rate":0.1,
+    #"max_depth": -1,
+    #"num_leaves":31,
+    #"colsample_bytree":0.5,
+    #"subsample":0.5,
+    #"max_bin":63,
+    #"reg_alpha":0.0,
+    #"reg_lambda":0.0,
+    #"min_child_weight": 6,
+    #"min_child_samples":20,
+    "verbose":-1,
+    }
     ############################# default system conf. in slurm workers
     maximum_cores_per_a_node = 30
     maximum_gpus_per_a_node  =  2
@@ -3106,7 +3127,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
+            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
             #
