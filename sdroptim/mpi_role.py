@@ -650,6 +650,7 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
                         for individual_params, its_values in each_wrapper_algorithm_params.items():
                             for value in its_values:
                                 chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
+            #if not probing:
             chunk_list.append(('converted',None,None,None))                                
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
@@ -2788,6 +2789,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         num_cv = 0
     #### 인코딩 하기 전이 오리지널 데이터셋이다
     if encoding == 'ohe':
+        ori_dataset = dataset.copy()
         dataset = pd.get_dummies(dataset)
         # Align the dataframes by the columns
         # No categorical indices to record
@@ -2927,10 +2929,11 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     else:
         feature_selected = False
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
-        two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
-        fs = merge_df_a_and_b(two_dfs)
-        if 'index' in fs.columns:
-            fs = fs.drop('index', axis=1)
+        #two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
+        #fs = merge_df_a_and_b(two_dfs)
+        #if 'index' in fs.columns:
+        #    fs = fs.drop('index', axis=1)
+        fs = ori_dataset
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ##############
@@ -2971,6 +2974,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     try:
         if not feature_selected:
             print(code)
+            print(X_train)
         exec(code, globals())
     except:
         code=code.replace("'gpu'", "'cpu'")
@@ -3081,7 +3085,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     }
     def_hparams_small={ # cpu/normal
     #"gpu_no":0,
-    #"cv":5,
+    "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
     #"nthread":4, # large nthread may occur deadlock 20210830
