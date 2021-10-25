@@ -1164,10 +1164,10 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                           where_primitives=[], seed_features=[],
                           max_depth=max_depth, verbose=0)
     ### fix index range
+    fm.index = base_index
     if base_index_has_generated:
         fm.index.name = base_index_name
     fm = fm.reset_index()
-    fm.index = base_index
     #else:
     #    fm.index.name = get_id_cols(gui_params)[0]# original base file index name instead of generated index_name
     try:
