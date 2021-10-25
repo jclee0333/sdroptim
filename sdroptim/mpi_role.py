@@ -642,7 +642,8 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
                             for individual_params, its_values in each_wrapper_algorithm_params.items():
                                 for value in its_values:
                                     chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
-            chunk_list.append(('original',None,None,None))
+            if not probing:
+                chunk_list.append(('original',None,None,None))
         if use_converted:
             if wrapper_based:
                 for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
@@ -650,8 +651,8 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
                         for individual_params, its_values in each_wrapper_algorithm_params.items():
                             for value in its_values:
                                 chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
-            #if not probing:
-            chunk_list.append(('converted',None,None,None))                                
+            if not probing:
+                chunk_list.append(('converted',None,None,None))                                
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
         #res.to_csv(outputpath, index=False)
@@ -2789,7 +2790,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         num_cv = 0
     #### 인코딩 하기 전이 오리지널 데이터셋이다
     if encoding == 'ohe':
-        ori_dataset = dataset.copy()
+        #ori_dataset = dataset.copy()
         dataset = pd.get_dummies(dataset)
         # Align the dataframes by the columns
         # No categorical indices to record
@@ -2929,11 +2930,11 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     else:
         feature_selected = False
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
-        #two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
-        #fs = merge_df_a_and_b(two_dfs)
-        #if 'index' in fs.columns:
-        #    fs = fs.drop('index', axis=1)
-        fs = ori_dataset
+        two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
+        fs = merge_df_a_and_b(two_dfs)
+        if 'index' in fs.columns:
+            fs = fs.drop('index', axis=1)
+        #fs = ori_dataset
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
         ##############
@@ -3088,20 +3089,20 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
-    #"nthread":4, # large nthread may occur deadlock 20210830
+    "nthread":4, # large nthread may occur deadlock 20210830
     "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
     "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
-    #"boosting_type": "gbdt",
+    "boosting_type": "gbdt",
     "learning_rate":0.1,
-    #"max_depth": -1,
-    #"num_leaves":31,
-    #"colsample_bytree":0.5,
-    #"subsample":0.5,
-    #"max_bin":63,
-    #"reg_alpha":0.0,
-    #"reg_lambda":0.0,
-    #"min_child_weight": 6,
-    #"min_child_samples":20,
+    "max_depth": -1,
+    "num_leaves":31,
+    "colsample_bytree":0.5,
+    "subsample":0.5,
+    "max_bin":63,
+    "reg_alpha":0.0,
+    "reg_lambda":0.0,
+    "min_child_weight": 6,
+    "min_child_samples":20,
     "verbose":-1,
     }
     ############################# default system conf. in slurm workers
