@@ -615,7 +615,7 @@ def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True af
     os.chmod(outputpath, 0o776)
     return res
 
-def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=True): # renew will be True after basic development
+def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=True, probing=False): # renew will be True after basic development
     gui_params=params
     chunk_list = []
     filter_based = {}
@@ -635,21 +635,22 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
             return None, filter_based
     else:
         if use_original:
+            if not probing:
+                if wrapper_based:
+                    for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
+                        if each_wrapper_algorithm_params is not None: # 20211029 bug fix
+                            for individual_params, its_values in each_wrapper_algorithm_params.items():
+                                for value in its_values:
+                                    chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
             chunk_list.append(('original',None,None,None))
-            if wrapper_based:
-                for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
-                    if each_wrapper_algorithm_params is not None: # 20211029 bug fix
-                        for individual_params, its_values in each_wrapper_algorithm_params.items():
-                            for value in its_values:
-                                chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
         if use_converted:
-            chunk_list.append(('converted',None,None,None))
             if wrapper_based:
                 for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
                     if each_wrapper_algorithm_params is not None: # 20211029 bug fix
                         for individual_params, its_values in each_wrapper_algorithm_params.items():
                             for value in its_values:
                                 chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
+            chunk_list.append(('converted',None,None,None))                                
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
         #res.to_csv(outputpath, index=False)
@@ -1993,12 +1994,11 @@ class ThreadingforFeatureSelection(object):
                 self.probing = True # probing attr. added 20211019
         else:
             self.title = ""        
-        if self.probing == False:
-            self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
+        self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
         self.generated_df = load_entire_dataset(params=self.gui_params, reduce_mem_usage=False)
         use_original  = False if self.original_df is None else True
         use_converted = False if self.generated_df is None else True
-        self.fs_job_list, self.filter_based_methods = get_fs_chunk_by_metadata(params=self.gui_params, labels=self.labels, use_original=use_original, use_converted=use_converted)
+        self.fs_job_list, self.filter_based_methods = get_fs_chunk_by_metadata(params=self.gui_params, labels=self.labels, use_original=use_original, use_converted=use_converted, probing=self.probing)
         if self.fs_job_list is None:
             self.comm.Abort() # nothing to do
         else:
@@ -2228,9 +2228,9 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             if df_merged is not None:
                 #try:
                 outputfilepath=data[2]#+"_update"
-                df_merged.to_csv(outputfilepath, index=True)
+                df_merged.to_csv(outputfilepath, index=False) # 처음부터 index가 없었을때에는 False가 맞음 있었을때 테스트가 필요함
                 os.chmod(outputfilepath, 0o776)
-                print(str(data[1])+" -> "+str(data[2])+ "(merge done!)")
+                print(str(data[1])+" -> "+str(data[2])+ "(merge done!!)")
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
             #comm.send(None, dest=0, tag=tags.READY)
         elif tag == tags.EXIT_REQ:
@@ -2846,6 +2846,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     m_dataset.replace([np.inf, -np.inf], np.nan, inplace=True)
     X_train, X_test, y_train, y_test = train_test_split(m_dataset, labels[target_col], test_size=gui_params['testing_frame_rate'])
     features = X_train.columns.tolist()
+    original_n_cols = len(features)
     target = target_col
     ################################################
     if (wrapper == "GradientFeatureSelector") and (n_cols >= 1):
@@ -3009,7 +3010,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     offplot(fi_figure, filename = fi_html_path, auto_open=False)
     print(">>> Feature Importance html has generated as "+fi_html_path)
     os.chmod(fi_html_path, 0o776)
-    return (confidence, n_cols)
+    return (confidence, n_cols, original_n_cols)
 
 def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     # Initializations and preliminaries
@@ -3127,9 +3128,10 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
+            score, n_cols, original_n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
+            job_to_do['original_n_cols'] = original_n_cols
             #
             if score is not None:
                 comm.send(job_to_do, dest=0, tag=tags.DONE)
