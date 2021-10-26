@@ -496,7 +496,7 @@ def get_ordered_relationships(gui_params): # 20210901; selected range using rela
                             ordered_relationships.append(each)
             return ordered_relationships
 
-def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True after basic development
+def get_data_chunk_by_metadata(gui_params, renew=False, probing=False): # renew will be True after basic development
     import pandas as pd
     #group_no = gui_params['group_no'] if 'group_no' in gui_params else 1
     group_no = 1 # default group_no
@@ -552,6 +552,13 @@ def get_data_chunk_by_metadata(gui_params, renew=False): # renew will be True af
                         temp_csv_shape, temp_has_header = get_csv_shape(temp_filepath) # (rows, cols)
                         temp_n_rows = temp_csv_shape[0]
                     dataset.append((temp_filepath, temp_n_rows, temp_has_header))
+    ######################
+    if probing:
+        gui_params['autofe_system_attr']['aggregation_primitives'] = []
+        if len(gui_params['input_columns_index_and_name'])<100:
+            gui_params['autofe_system_attr']['transformation_primitives'] = ['add_numeric', 'divide_numeric', 'percentile', 'negate', 'absolute', 'divide_by_feature']
+        else:
+            gui_params['autofe_system_attr']['transformation_primitives'] = ['percentile', 'negate', 'absolute', 'divide_by_feature']
     ######################
     # check primitives that CANNOT run under dask environments
     if "autofe_system_attr" in gui_params:
@@ -634,24 +641,33 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
             print("ERROR: Wrapper-based Feature selection (GFS / GBDT) will run only with Y values (labels) in the original dataset.")
             return None, filter_based
     else:
-        if use_original:
-            if not probing:
+        if probing:
+            chunk_list.append(('original','GradientFeatureSelector','n_features',1))
+            chunk_list.append(('converted','GradientFeatureSelector','n_features',0.25))
+            chunk_list.append(('converted','GradientFeatureSelector','n_features',0.5))
+            chunk_list.append(('converted','GradientFeatureSelector','n_features',0.75))
+            chunk_list.append(('converted','GradientFeatureSelector','n_features',1))
+            filter_based.update({'remove_low_information_features':None})
+            filter_based.update({'remove_highly_null_features':{'pct_null_threshold': 0.95}})
+            filter_based.update({'remove_single_value_features': {'count_nan_as_value': 0}})
+            if len(gui_params['input_columns_index_and_name'])<100:
+                filter_based.update({'remove_highly_correlated_features':None})
+        else:
+            if use_original:
                 if wrapper_based:
                     for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
                         if each_wrapper_algorithm_params is not None: # 20211029 bug fix
                             for individual_params, its_values in each_wrapper_algorithm_params.items():
                                 for value in its_values:
                                     chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
-            if not probing:
                 chunk_list.append(('original',None,None,None))
-        if use_converted:
-            if wrapper_based:
-                for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
-                    if each_wrapper_algorithm_params is not None: # 20211029 bug fix
-                        for individual_params, its_values in each_wrapper_algorithm_params.items():
-                            for value in its_values:
-                                chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
-            if not probing:
+            if use_converted:
+                if wrapper_based:
+                    for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
+                        if each_wrapper_algorithm_params is not None: # 20211029 bug fix
+                            for individual_params, its_values in each_wrapper_algorithm_params.items():
+                                for value in its_values:
+                                    chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
                 chunk_list.append(('converted',None,None,None))                                
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
@@ -1571,13 +1587,16 @@ def autofe_mpi(metadata_filename):
     gui_params = load_metadata(metadata_filename)
     ordered_relationships = get_ordered_relationships(gui_params)
     #max_sec = gui_params['time_deadline_sec'] if 'time_deadline_sec' in gui_params else 3600 # default: max 1 hour
-    max_sec = 3600 # max_sec n_proc
+    max_sec = 28800 # max_sec n_proc
     if 'autofe_system_attr' in gui_params:
         if 'time_deadline_sec' in gui_params['autofe_system_attr']:
             max_sec = gui_params['autofe_system_attr']['time_deadline_sec'] # update time_deadline_sec if exists in metadata.json
+    if "probing" in gui_params['autofe_system_attr']:
+        if gui_params['autofe_system_attr']['probing']==True:
+            probing=True
     if rank == 0:
         print("** Calculating partial index range (i.e., chunk) for each processor according to the type of primitives ... **")
-        data_chunk_df = get_data_chunk_by_metadata(gui_params) # 이부분을 직접 돌리던지 파일 읽어와서 이어 작업하기 구현
+        data_chunk_df = get_data_chunk_by_metadata(gui_params, renew=False, probing=probing) # 이부분을 직접 돌리던지 파일 읽어와서 이어 작업하기 구현
         print("*** Index ranges calculated successfully. **")
         provider = ThreadingforFeatureEngineeringRank0(gui_params, data_chunk_df, comm, tags, max_sec)        
     name = MPI.Get_processor_name()
@@ -1993,7 +2012,8 @@ class ThreadingforFeatureSelection(object):
             if "title" in self.gui_params['autofe_system_attr']:
                 self.title = self.gui_params['autofe_system_attr']['title']
             if "probing" in self.gui_params['autofe_system_attr']:
-                self.probing = True # probing attr. added 20211019
+                if self.gui_params['autofe_system_attr']['probing']==True:
+                    self.probing = True # probing attr. added 20211019
         else:
             self.title = ""        
         self.original_df, self.labels  = load_origin_dataset(params=self.gui_params)
