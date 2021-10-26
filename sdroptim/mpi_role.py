@@ -2717,16 +2717,42 @@ def plot_feature_importance(fi_df, fi_title):
 
 
 def plot_model_scores(results_with_score, fs_title):
+    #import plotly.io as pio
+    #import plotly.express as px
+    #pio.renderers.default = 'colab'
+    #fig = px.bar(results_with_score,
+    #            x='group_no',
+    #            y='score',
+    #            text='n_cols',
+    #            color='base_df',
+    #            title='Scores: '+fs_title,
+    #            hover_data=['score', 'base_df', 'group_no','wrapper', 'n_cols'],
+    #            labels={"group_no":"Group Number", "score":"Performance Score",
+    #            "base_df":"Dataframe", "n_cols":"Selected Columns", "wrapper":"Wrapper Type" },
+    #)
+    #fig.update_traces(textposition='outside')
+    #minv = results_with_score.score.min()
+    #maxv = results_with_score.score.max()
+    #diffv = maxv-minv
+    #fig.update_yaxes(range=[minv-diffv/2, maxv+diffv/2])
+    ##########################
     import plotly.io as pio
     import plotly.express as px
-    pio.renderers.default = 'colab'
+    ## added 20211026
+    res=[]
+    for i, row in results_with_score.iterrows():
+        res.append(str(row['n_cols'])+'/'+str(row['original_n_cols'])+" (top "+str(round(row['n_cols']/row['original_n_cols']*100))+"% cols)")
+    results_with_score['percents_str']=res
+    results_with_score['base_df']=results_with_score['base_df'].apply(lambda x: 'AutoSynthesized Dataframe' if x=='converted' else 'Raw Dataframe')
+    ##
+    
     fig = px.bar(results_with_score,
                 x='group_no',
                 y='score',
-                text='n_cols',
+                text='percents_str',
                 color='base_df',
                 title='Scores: '+fs_title,
-                hover_data=['score', 'base_df', 'group_no','wrapper', 'n_cols'],
+                hover_data=['score', 'group_no','wrapper', 'n_cols'],
                 labels={"group_no":"Group Number", "score":"Performance Score",
                 "base_df":"Dataframe", "n_cols":"Selected Columns", "wrapper":"Wrapper Type" },
     )
@@ -2735,6 +2761,31 @@ def plot_model_scores(results_with_score, fs_title):
     maxv = results_with_score.score.max()
     diffv = maxv-minv
     fig.update_yaxes(range=[minv-diffv/2, maxv+diffv/2])
+    fig.add_annotation(
+            x=results_with_score[results_with_score['score']==results_with_score['score'].max()]['group_no'].values[0],
+            y=results_with_score['score'].max(),
+            xref="x",
+            yref="y",
+            text="Best Score = "+str(round(results_with_score['score'].max(),4)),
+            showarrow=True,
+            font=dict(
+                family="Courier New, monospace",
+                size=16,
+                color="#ffffff"
+                ),
+            align="center",
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="#636363",
+            ax=0,
+            ay=-50,
+            bordercolor="#c7c7c7",
+            borderwidth=2,
+            borderpad=4,
+            bgcolor="#ff7f0e",
+            opacity=0.8
+            )
     return fig
 
 def plot_output_scores_html(metadata_json):
