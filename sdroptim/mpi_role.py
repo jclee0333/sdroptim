@@ -2752,9 +2752,10 @@ def plot_model_scores(results_with_score, fs_title):
                 text='percents_str',
                 color='base_df',
                 title='Scores: '+fs_title,
-                hover_data=['score', 'group_no','wrapper', 'n_cols'],
+                hover_data=['score', 'group_no','wrapper', 'n_cols','original_n_cols','model_size'],
                 labels={"group_no":"Group Number", "score":"Performance Score",
-                "base_df":"Dataframe", "n_cols":"Selected Columns", "wrapper":"Wrapper Type" },
+                "base_df":"Dataframe", "n_cols":"Selected Columns", "wrapper":"Wrapper Type",
+                "model_size":"Model Size" ,'original_n_cols':"All Columns"},
     )
     fig.update_traces(textposition='outside')
     minv = results_with_score.score.min()
@@ -2786,6 +2787,15 @@ def plot_model_scores(results_with_score, fs_title):
             bgcolor="#ff7f0e",
             opacity=0.8
             )
+    for i, row in results_with_score.iterrows():
+        fig.add_annotation(x=row['group_no'], y=minv-diffv/2+abs(((minv-diffv/2)-(maxv+diffv/2))/8),
+            text=str(round(row['model_size']/1000000,1))+"M",
+            align="center",
+            showarrow=False,ax=0,ay=0,
+            font=dict(
+            family="Courier New, monospace",
+            size=30,
+            color="#ffffff"),)
     return fig
 
 def plot_output_scores_html(metadata_json):
@@ -3057,27 +3067,33 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     ### 이아래부분도 class/reg 구분지어줘야한다...
     avg_clf_fi = None
     if num_cv>1:
+        model_size = 0
         if gui_params['task']=='Classification':
             test_preds_proba = np.zeros((X_test.shape[0],len(label_names)))
             for each_clf in clfs:
+                model_size+=len(each_clf.model_to_string())
                 test_preds_proba += each_clf.predict(X_test)/num_cv
                 if avg_clf_fi is None:
                     avg_clf_fi = each_clf.feature_importance()
                 else:
                     avg_clf_fi = np.sum([avg_clf_fi, each_clf.feature_importance()], axis=0)
             avg_clf_fi = avg_clf_fi / num_cv
+            model_size = int(model_size / num_cv)
             test_preds = np.argmax(test_preds_proba, axis=1)
             confidence = sklearn.metrics.f1_score(test_preds, y_test, average='macro')
         elif gui_params['task']=='Regression':
             confidence = scores.mean()
             for each_clf in clfs:
+                model_size+=len(each_clf.model_to_string())
                 if avg_clf_fi is None:
                     avg_clf_fi = each_clf.feature_importance()
                 else:
                     avg_clf_fi = np.sum([avg_clf_fi, each_clf.feature_importance()], axis=0)
             avg_clf_fi = avg_clf_fi / num_cv
+            model_size = int(model_size / num_cv)
     else:
         avg_clf_fi = clf.feature_importance()    #
+        model_size = len(clf.model_to_string())
     ##############
     fi_df = pd.DataFrame({'value':avg_clf_fi, 'Feature': final_column_names}).sort_values(by="value",ascending=False)
     fi_csv_path = outputfilepath.split('.csv')[0]+'_FI.csv'
@@ -3090,7 +3106,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     offplot(fi_figure, filename = fi_html_path, auto_open=False)
     print(">>> Feature Importance html has generated as "+fi_html_path)
     os.chmod(fi_html_path, 0o776)
-    return (confidence, n_cols, original_n_cols)
+    return (confidence, n_cols, original_n_cols, model_size)
 
 def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     # Initializations and preliminaries
@@ -3208,10 +3224,11 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols, original_n_cols = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
+            score, n_cols, original_n_cols, model_size = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
             job_to_do['original_n_cols'] = original_n_cols
+            job_to_do['model_size'] = model_size
             #
             if score is not None:
                 comm.send(job_to_do, dest=0, tag=tags.DONE)
