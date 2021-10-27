@@ -2251,7 +2251,10 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             if df_merged is not None:
                 #try:
                 outputfilepath=data[2]#+"_update"
-                df_merged.to_csv(outputfilepath, index=False) # 처음부터 index가 없었을때에는 False가 맞음 있었을때 테스트가 필요함
+                if idx_col_name: # 원래 index 항목이 있었다면
+                    df_merged.to_csv(outputfilepath, index=True)
+                else:            # 없었다면 동일하게 없게 출력
+                    df_merged.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
                 print(str(data[1])+" -> "+str(data[2])+ "(merge done!!)")
                 comm.send([data[1], data[2]], dest=0, tag=tags.DONE) # merged, original + target
@@ -2266,10 +2269,6 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
             if provider.finished:
                 print("ALL finishied")
                 break
-
-
-
-
             #if rank != 0:
             #    print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
             #    comm.send(None, dest=0, tag=tags.EXIT)
