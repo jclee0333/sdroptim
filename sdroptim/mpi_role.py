@@ -1591,6 +1591,7 @@ def autofe_mpi(metadata_filename):
     if 'autofe_system_attr' in gui_params:
         if 'time_deadline_sec' in gui_params['autofe_system_attr']:
             max_sec = gui_params['autofe_system_attr']['time_deadline_sec'] # update time_deadline_sec if exists in metadata.json
+    probing = False
     if "probing" in gui_params['autofe_system_attr']:
         if gui_params['autofe_system_attr']['probing']==True:
             probing=True
@@ -2787,15 +2788,16 @@ def plot_model_scores(results_with_score, fs_title):
             bgcolor="#ff7f0e",
             opacity=0.8
             )
-    for i, row in results_with_score.iterrows():
-        fig.add_annotation(x=row['group_no'], y=minv-diffv/2+abs(((minv-diffv/2)-(maxv+diffv/2))/8),
-            text=str(round(row['model_size']/1000000,1))+"M",
-            align="center",
-            showarrow=False,ax=0,ay=0,
-            font=dict(
-            family="Courier New, monospace",
-            size=30,
-            color="#ffffff"),)
+    ## add model size later.. 2021-10-27 disabled
+    #for i, row in results_with_score.iterrows():
+    #    fig.add_annotation(x=row['group_no'], y=minv-diffv/2+abs(((minv-diffv/2)-(maxv+diffv/2))/8),
+    #        text=str(round(row['model_size']/1000000,1))+"M",
+    #        align="center",
+    #        showarrow=False,ax=0,ay=0,
+    #        font=dict(
+    #        family="Courier New, monospace",
+    #        size=30,
+    #        color="#ffffff"),)
     return fig
 
 def plot_output_scores_html(metadata_json):
