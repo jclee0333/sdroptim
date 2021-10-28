@@ -8,7 +8,7 @@ with open('README.md', 'r', 'utf-8') as f:
 
 setup(
     name             = 'sdroptim',
-    version          = '0.2.2',
+    version          = '0.2.3',
     packages         = find_packages(),
     description      = 'Automated Machine Learning Library for KISTI Science Data Repository (for slurm job library)',
     long_description = readme,
@@ -32,6 +32,7 @@ setup(
                         'pandas',
                         'pyarrow', # added for featuretools serialization
                         'fastparquet',# added for featuretools serialization
+                        'pickle5',
                         'gpuinfo' # added for automatic gpu usage check
                         ], 
     classifiers      = ['Programming Language :: Python :: 3.6',
