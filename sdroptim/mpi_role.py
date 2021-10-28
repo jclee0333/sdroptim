@@ -660,7 +660,7 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
                             for individual_params, its_values in each_wrapper_algorithm_params.items():
                                 for value in its_values:
                                     chunk_list.append(('original',each_wrapper_algorithm,individual_params, value))
-                chunk_list.append(('original',None,None,None))
+                #chunk_list.append(('original',None,None,None))
             if use_converted:
                 if wrapper_based:
                     for each_wrapper_algorithm, each_wrapper_algorithm_params in wrapper_based.items():
@@ -668,7 +668,7 @@ def get_fs_chunk_by_metadata(params, labels, use_original=True, use_converted=Tr
                             for individual_params, its_values in each_wrapper_algorithm_params.items():
                                 for value in its_values:
                                     chunk_list.append(('converted',each_wrapper_algorithm,individual_params, value))
-                chunk_list.append(('converted',None,None,None))                                
+                #chunk_list.append(('converted',None,None,None))                                
         res = pd.DataFrame(chunk_list, columns=['base_df', 'wrapper','param_name','param_value']).reset_index().rename(columns={'index':'group_no'}) # add parallelable Boolean
         #outputpath = os.path.join("./", title+"__fs_chunk.csv")
         #res.to_csv(outputpath, index=False)
@@ -1183,8 +1183,8 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                           where_primitives=[], seed_features=[],
                           max_depth=max_depth, verbose=0)
     ### fix index range
-    fm.index = base_index
     if base_index_has_generated:
+        fm.index = base_index
         fm.index.name = base_index_name
     fm = fm.reset_index()
     #else:
@@ -2134,7 +2134,8 @@ def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
     if n_cores == 'auto':
         #import multiprocessing as mp
         #n_cores = min(int(mp.cpu_count() / 2), int(len(all_parts)/2))
-        n_cores = min(int(cpu_count() / 2), int(len(all_parts)/2))
+        #n_cores = min(int(cpu_count() / 2), int(len(all_parts)/2))
+        n_cores = min(15, int(len(all_parts)/2))
     all_parts_split = np.array_split(all_parts, n_cores)
     pool = Pool(n_cores)
     df = pd.concat(pool.map(func, all_parts_split))
@@ -3055,9 +3056,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             code=code.replace("'cpu'", "'gpu'")
             code=code.replace("'device_type': 'gpu',\n", "'device_type': 'gpu',\n    'gpu_device_id': DEVICE,\n    'nthread':1,\n")
     try:
-        if not feature_selected:
-            print(code)
-            print(X_train)
+        #if not feature_selected:
+        #print(code)
+        #print(X_train)
         exec(code, globals())
     except:
         code=code.replace("'gpu'", "'cpu'")
@@ -3194,7 +3195,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "verbose":-1,
     }
     ############################# default system conf. in slurm workers
-    maximum_cores_per_a_node = 30
+    maximum_cores_per_a_node = 30 / 2 # half for FS
     maximum_gpus_per_a_node  =  2
     #GPUInfo.get_info()[0]
     #{'16771': ['0'], '16772': ['0'], '16774': ['0'], '16773': ['1'], '16775': ['1'], '16805': ['1']}
@@ -3211,8 +3212,8 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     ##############################################################
     while True:
         ### 월요일 추가테스트 필요
-        #if not gpu_available: # deprecated 2021-08-30 because of cpu only params
-        #    comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+        if not gpu_available: # deprecated 2021-08-30 because of cpu only params # resume 1028
+            comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
         ###
         comm.send(None, dest=0, tag=tags.READY)
         #each_sub = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
