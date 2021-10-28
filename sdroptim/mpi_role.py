@@ -2032,13 +2032,13 @@ class ThreadingforFeatureSelection(object):
                 self.original_df = apply_filters(self.original_df, self.filter_based_methods, "original")
             if use_converted:
                 self.generated_df = apply_filters(self.generated_df, self.filter_based_methods, "converted")
-        if use_converted:
-            ### save generated_df (csv)
-            outputfilepath=os.path.join(self.gui_params['ml_file_path'],'converted_'+self.gui_params['ml_file_name'])
-            print(">> Saving converted csv .. "+str(outputfilepath))
-            self.generated_df.to_csv(outputfilepath, index=False)
-            os.chmod(outputfilepath, 0o776)
-            print(">> Complete !")
+        #if use_converted:
+        #    ### save generated_df (csv)
+        #    outputfilepath=os.path.join(self.gui_params['ml_file_path'],'converted_'+self.gui_params['ml_file_name'])
+        #    print(">> Saving converted csv .. "+str(outputfilepath))
+        #    self.generated_df.to_csv(outputfilepath, index=False)
+        #    os.chmod(outputfilepath, 0o776)
+        #    print(">> Complete !")
         ###
         while closed_workers < num_workers :
             # resource allocation (processor acquisition @ READY status)
@@ -2134,7 +2134,7 @@ def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
     if n_cores == 'auto':
         #import multiprocessing as mp
         #n_cores = min(int(mp.cpu_count() / 2), int(len(all_parts)/2))
-        n_cores = min(int(cpu_count() / 2), int(len(all_parts)/2))
+        n_cores = min(int(cpu_count()/2), int(len(all_parts)/2))
         #n_cores = min(15, int(len(all_parts)/2))
     all_parts_split = np.array_split(all_parts, n_cores)
     pool = Pool(n_cores)
@@ -2144,6 +2144,8 @@ def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
     if not df.index.is_monotonic_increasing:
         df = df.sort_index()
     return df
+
+#>>> df = load_entire_dataset(gui_params, reduce_mem_usage=False)
 
 #df=parallelizize_concat_by_pool(all_parts, read_csv_from_filelist)
 
@@ -2268,16 +2270,26 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
     if rank == 0:
         while True:
             if provider.finished:
-                print("ALL finishied")
+                # load entire partial datasets (merged) -> into parquet dataset to save
+                generated_df = load_entire_dataset(params=gui_params, reduce_mem_usage=False)
+                print("Generated partial datasets loaded successfully.\n")
+                use_converted = False if generated_df is None else True
+                # if dataset is bigger than 1G -> use parquet instead of csv type to read/write
+                if use_converted:
+                    outputfilepath=os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
+                    outputfilepath=outputfilepath.split('.csv')[0]+'.pq'
+                    if ( generated_df.size / 1000000 ) > 100 :
+                        print(">> Saving converted dataset into parquet datatype (>100M)..."+str(outputfilepath))
+                        generated_df.to_parquet(outputfilepath)
+                    else:
+                        print("* Saving whole dataset into CSV datatype ...(<100M)")
+                        if idx_col_name:
+                            generated_df.to_csv(outputfilepath, index=True)
+                        else:
+                            generated_df.to_csv(outputfilepath, index=False)
+                os.chmod(outputfilepath, 0o776)
+                print("All finishied")
                 break
-            #if rank != 0:
-            #    print(">> Process (rank %d) on %s will waiting other process.." % (rank,name))
-            #    comm.send(None, dest=0, tag=tags.EXIT)
-            #    break
-            #else:
-            #    print(">> Merge CSVs almost DONE ! Please wait for other process..")
-            #    break
-        #comm.send(None, dest=0, tag=tags.EXIT)
 
 def mergecsv_mpi_old(metadata_filename, elapsed_time=0.0):
     # Initializations and preliminaries
@@ -2441,6 +2453,10 @@ def load_entire_dataset(params, reduce_mem_usage=False):
                 title = gui_params['autofe_system_attr']['title']
             else:
                 title = ""
+    pqpath = os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
+    pqpath = pqpath.split('.csv')[0]+'.pq'
+    if os.path.exists(pqpath):
+        return pd.read_parquet(pqpath)
     if os.path.exists('fm_'+title+"__output_list.csv"):
         id_col, target_col = get_id_cols(gui_params)
         output_list = pd.read_csv('fm_'+title+"__output_list.csv")
@@ -3136,7 +3152,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
-    "nthread":-1,
+    "nthread":4,
     "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
     "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
     "boosting_type": "gbdt",
@@ -3194,14 +3210,15 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "min_child_samples":20,
     "verbose":-1,
     }
-    if gui_params['n_proc'] > 10:
-        if rank>3:
-            comm.Disconnect()
+    if gui_params["autofe_system_attr"]['n_proc'] > 10:
+        if rank%30>7:
+            import sys
+            sys.exit()
         def_hparams = def_hparams_gpu
     else:
         def_hparams = def_hparams_small
     ############################# default system conf. in slurm workers
-    maximum_cores_per_a_node = 30 / 2 # half for FS
+    maximum_cores_per_a_node = 30 
     maximum_gpus_per_a_node  =  2
     #GPUInfo.get_info()[0]
     #{'16771': ['0'], '16772': ['0'], '16774': ['0'], '16773': ['1'], '16775': ['1'], '16805': ['1']}
@@ -3218,8 +3235,8 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     ##############################################################
     while True:
         ### 월요일 추가테스트 필요
-        if not gpu_available: # deprecated 2021-08-30 because of cpu only params # resume 1028
-            comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+        #if not gpu_available: # deprecated 2021-08-30 because of cpu only params # resume 1028
+        #    comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
         ###
         comm.send(None, dest=0, tag=tags.READY)
         #each_sub = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
