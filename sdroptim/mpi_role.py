@@ -2134,8 +2134,8 @@ def parallelizize_concat_by_pool(all_parts, func, n_cores='auto'):
     if n_cores == 'auto':
         #import multiprocessing as mp
         #n_cores = min(int(mp.cpu_count() / 2), int(len(all_parts)/2))
-        #n_cores = min(int(cpu_count() / 2), int(len(all_parts)/2))
-        n_cores = min(15, int(len(all_parts)/2))
+        n_cores = min(int(cpu_count() / 2), int(len(all_parts)/2))
+        #n_cores = min(15, int(len(all_parts)/2))
     all_parts_split = np.array_split(all_parts, n_cores)
     pool = Pool(n_cores)
     df = pd.concat(pool.map(func, all_parts_split))
@@ -3194,6 +3194,12 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "min_child_samples":20,
     "verbose":-1,
     }
+    if gui_params['n_proc'] > 10:
+        if rank>3:
+            comm.Disconnect()
+        def_hparams = def_hparams_gpu
+    else:
+        def_hparams = def_hparams_small
     ############################# default system conf. in slurm workers
     maximum_cores_per_a_node = 30 / 2 # half for FS
     maximum_gpus_per_a_node  =  2
@@ -3226,7 +3232,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         if tag == tags.START:
             # Do the work here
             print(">> Process (rank %d) on %s is running.." % (rank,name))
-            score, n_cols, original_n_cols, model_size = model_score(gui_params,job_to_do,df,labels,def_hparams_small) # lightgbm params for cpus..
+            score, n_cols, original_n_cols, model_size = model_score(gui_params,job_to_do,df,labels,def_hparams) # lightgbm params for cpus..
             job_to_do['score'] = score
             job_to_do['n_cols'] = n_cols
             job_to_do['original_n_cols'] = original_n_cols
