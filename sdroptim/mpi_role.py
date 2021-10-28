@@ -2071,12 +2071,14 @@ class ThreadingforFeatureSelection(object):
             elif tag == self.tags.DONE:
                 self.results_with_score = self.results_with_score.append(data)
                 self.results_with_score = self.results_with_score.sort_values(by='group_no')
-                print("[DONE] processor ",source," finished work!")
+                print("[DONE"+str(self.done_job)+"/"+str(self.n_job)+"] processor ",source," finished work!")
                 print(">>> A partial csv score has been updated to "+'fs_'+self.title+'__output_scores.csv')
                 outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
                 self.results_with_score.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
                 self.done_job += 1
+                if self.n_job == self.done_job: # finished all jobs
+                    break
             elif tag == self.tags.EXIT_RES:
                 closed_workers += 1
                 print("***CLOSEDWORKERS******************************* = ", closed_workers, num_workers)
@@ -3129,7 +3131,11 @@ def model_score(params, job_to_do, dataset, labels, hparams):
 def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     # Initializations and preliminaries
     allocated_fnc=0
-    comm = MPI.COMM_WORLD   # get MPI communicator object
+    import numpy as np
+    from mpi4py import MPI
+    from mpi4py.util import pkl5
+    comm = pkl5.Intracomm(MPI.COMM_WORLD)  # comm wrapper to send large dataset (>4Gb)
+    #comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
