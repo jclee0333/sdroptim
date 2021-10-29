@@ -1110,6 +1110,17 @@ def getFeaturetoolsVariableTypesDict(ic, vt, should_make_index, index_name):
     else:
         raise ValueError("# of column names != # of datatypes, please check metadata.json")
 
+## count combination for pair-wise
+def nCr(n,r):
+    import operator as op
+    from functools import reduce
+    if n<1 or r<0 or n<r:
+        raise ValueError
+    r=min(r,n-r)
+    numerator = reduce(op.mul, range(n,n-r,-1),1)
+    denominator = reduce(op.mul, range(1,r+1),1)
+    return numerator//denominator
+
 def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
     import featuretools as ft
     import os
@@ -1142,6 +1153,10 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
             index_name = os.path.basename(each_df[0]['filepath'])+'_index'
         # store base index
         if each_df[0]['filepath'] == os.path.join(gui_params['ml_file_path'],gui_params['ml_file_name']):
+            n_Numeric = 0
+            for k, v, in vt.items():
+                if v == 'Numeric':
+                    n_Numeric += 1
             base_index = each_df[1].index.copy()
             if make_index:
                 # base does not have index
@@ -1173,10 +1188,14 @@ def AutoFeatureGeneration(datasetlist, methods, gui_params, current_group_no):
                     relationships_flag = True
     ##################################### 3. Do Deep Feature Synthesis
     # element-wise calculation is too big to compute (make limitation on the automate process) # 2021-09-02
-    #element_wise_methods = ['and','or','add_numeric','divide_numeric','substract_numeric', 'modulo_numeric','multiply_boolean']
-    #n_element_wise = len([x for x in methods[0]+methods[1] if x in element_wise_methods])
+    element_wise_methods = ['and','or','add_numeric','divide_numeric','substract_numeric', 'modulo_numeric','multiply_boolean']
+    n_element_wise = len([x for x in methods[0]+methods[1] if x in element_wise_methods])
+    max_depth = 1
+    if n_element_wise > 0: # at least 1 pair-wise primitives
+        if nCr(n_Numeric, n_element_wise) < 1000: # memory bound for each column calculations
+            max_depth = 2
     #max_depth = 2 if n_element_wise<2 else 1
-    max_depth = 2 if relationships_flag else 1
+    #max_depth = 2 if relationships_flag else 1
     fm, features = ft.dfs(entityset=es, target_entity=os.path.basename(datasetlist[0][0]['filepath']),
                           agg_primitives=methods[0],
                           trans_primitives=methods[1],
@@ -2867,7 +2886,7 @@ def make_chart(scores_filepath,title):
 
 
 def model_score(params, job_to_do, dataset, labels, hparams):
-    import copy
+    import copy, gc
     gui_params = copy.deepcopy(params)
     def_hparams = copy.deepcopy(hparams)
     #### dataset 처리
@@ -2885,6 +2904,13 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         encoding = def_hparams['encoding']
     else:
         encoding='ohe'
+    ### memory efficient encoding
+    shuffle=True
+    if dataset.size/1000000> 100: # >100MB
+        encoding='le'
+        if dataset.size/1000000> 2000:#>2GB
+            shuffle = False
+    ###
     if 'cv' in def_hparams:
         num_cv = def_hparams['cv']
     else:
@@ -2899,6 +2925,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     # Integer label encoding
     elif encoding == 'le':
         # Create a label encoder
+        from sklearn.preprocessing import LabelEncoder
         label_encoder = LabelEncoder()
         # List for storing categorical indices
         cat_indices = []
@@ -2909,6 +2936,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
                 dataset[col] = label_encoder.fit_transform(np.array(dataset[col].astype(str)).reshape((-1,)))
                 # Record the categorical indices
                 cat_indices.append(i)
+    gc.collect()
     features = dataset.columns.tolist()
     n_features = len(features)
     if param_value<=0:
@@ -2946,9 +2974,18 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     from sklearn.model_selection import train_test_split
     global X_train, X_test, y_train, y_test
     ##### cleaning for automatic modeling # add 20210811
-    m_dataset = dataset.copy()
-    m_dataset.replace([np.inf, -np.inf], np.nan, inplace=True)
-    X_train, X_test, y_train, y_test = train_test_split(m_dataset, labels[target_col], test_size=gui_params['testing_frame_rate'])
+    #dataset = dataset.copy() # remove due to memory issue
+    dataset.replace([np.inf, -np.inf], np.nan, inplace=True)
+    #### memory-efficient split
+    if shuffle:
+        X_train, X_test, y_train, y_test = train_test_split(dataset, labels[target_col], test_size=gui_params['testing_frame_rate'], shuffle=shuffle)
+    else:
+        ratio = int(dataset.shape[0]*(1-gui_params['testing_frame_rate'])) #should be int
+        X_train = dataset.iloc[:ratio,:]
+        X_test = dataset.iloc[ratio:,:]
+        y_train = labels.iloc[:ratio,:][target_col]
+        y_test = labels.iloc[ratio:,:][target_col]
+    print("Dataset has been splitted after shuffled." if shuffle else "Dataset has been splitted without shuffle due to memory exhausition.")
     features = X_train.columns.tolist()
     original_n_cols = len(features)
     target = target_col
@@ -2966,7 +3003,10 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         gfs_params['n_features']=n_cols
         from sklearn.preprocessing import StandardScaler
         scaler = StandardScaler()
-        scaled = scaler.fit(X_train.append(X_test))
+        #scaled = scaler.fit(X_train.append(X_test))
+        scaled = scaler.fit(dataset)
+        del dataset
+        gc.collect()
         try:
             fgs = FeatureGradientSelector(**gfs_params)
             fgs.fit(scaled.transform(X_train.replace(np.nan,0)), y_train.values) # torch 
@@ -2977,18 +3017,22 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             fgs.fit(scaled.transform(X_train.replace(np.nan,0)), y_train.values) # torch 
         # get improtant features
         # will return the index with important feature here.
-        X_train = X_train.iloc[:,fgs.get_selected_features()].copy() # in order to avoid highly-defragmented frame
-        X_test = X_test.iloc[:,fgs.get_selected_features()].copy() # in order to avoid highly-defragmented frame
+        X_train = X_train.iloc[:,fgs.get_selected_features()]#.copy() # in order to avoid highly-defragmented frame
+        X_test = X_test.iloc[:,fgs.get_selected_features()]#.copy() # in order to avoid highly-defragmented frame
         features = X_train.columns.tolist()
         target = target_col
         #### file save
         outputfilepath=os.path.join("./", "fs_GFS_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs =  (X_train.append(X_test).sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
+        del two_dfs
+        gc.collect()
         if 'index' in fs.columns:
             fs = fs.drop('index', axis=1)
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
+        del fs
+        gc.collect()
         ##############
     elif wrapper == "GBDTSelector":
         feature_selected = True
@@ -3006,7 +3050,9 @@ def model_score(params, job_to_do, dataset, labels, hparams):
         fgs = GBDTSelector()
         from sklearn.preprocessing import StandardScaler
         scaler = StandardScaler()
-        scaled = scaler.fit(X_train.append(X_test))
+        scaled = scaler.fit(dataset)
+        del dataset
+        gc.collect()
         try:
             fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=-100)
         except:
@@ -3015,29 +3061,37 @@ def model_score(params, job_to_do, dataset, labels, hparams):
             cpu_only = True
             fgs.fit(scaled.transform(X_train.values), y_train.values,lgb_params=for_wrapper_param, eval_ratio=0.2,early_stopping_rounds= max(int(LightGBM_num_boost_round/10),5),num_boost_round=LightGBM_num_boost_round,importance_type='split', verbose=100)
         '''/home/jclee/Feature_study/mpi_role.py:2079: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider using pd.concat instead.  To get a de-fragmented frame, use `newframe = frame.copy()`'''
-        X_train = X_train.iloc[:,fgs.get_selected_features(n_cols)].copy() # in order to avoid highly-defragmented frame
-        X_test = X_test.iloc[:,fgs.get_selected_features(n_cols)].copy() # in order to avoid highly-defragmented frame
+        X_train = X_train.iloc[:,fgs.get_selected_features(n_cols)]#.copy() # in order to avoid highly-defragmented frame
+        X_test = X_test.iloc[:,fgs.get_selected_features(n_cols)]#.copy() # in order to avoid highly-defragmented frame
         features = X_train.columns.tolist()
         target = target_col
         #### file save
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs =  (X_train.append(X_test).sort_index().reset_index(), labels.sort_index().reset_index())
         fs = merge_df_a_and_b(two_dfs)
+        del two_dfs
+        gc.collect()
         if 'index' in fs.columns:
             fs = fs.drop('index', axis=1)
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
+        del fs
+        gc.collect()
         ##############
     else:
         feature_selected = False
         outputfilepath=os.path.join("./", "fs_GBDT_n"+str(n_cols)+"_"+title+"__G"+str(current_group_no)+".csv")
         two_dfs = (dataset.sort_index().reset_index(), labels.sort_index().reset_index())
+        del dataset
+        gc.collect()
         fs = merge_df_a_and_b(two_dfs)
         if 'index' in fs.columns:
             fs = fs.drop('index', axis=1)
         #fs = ori_dataset
         fs.to_csv(outputfilepath, index=False)
         os.chmod(outputfilepath, 0o776)
+        del fs
+        gc.collect()
         ##############
     final_column_names = X_test.columns.tolist()
     from sklearn.preprocessing import StandardScaler
@@ -3158,7 +3212,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "cv":5,
     "encoding":"ohe",
     "num_boost_round":100,
-    "nthread":4,
+    "nthread":-1,
     "objective":"regression" if gui_params['task'] == "Regression" else "multiclass",
     "metric":"rmse" if gui_params['task'] == "Regression" else "multi_logloss",
     "boosting_type": "gbdt",
@@ -3217,7 +3271,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "verbose":-1,
     }
     if gui_params["autofe_system_attr"]['n_proc'] > 10:
-        if rank%30>7:
+        if rank%30>1:
             import sys
             sys.exit()
         def_hparams = def_hparams_gpu
