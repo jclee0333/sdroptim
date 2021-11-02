@@ -2088,6 +2088,7 @@ class ThreadingforFeatureSelection(object):
                         self.comm.send(None, dest=i, tag=self.tags.EXIT_REQ) # stop all except rank 0
                     self.timeout = True
             elif tag == self.tags.DONE:
+                self.done_job += 1
                 self.results_with_score = self.results_with_score.append(data)
                 self.results_with_score = self.results_with_score.sort_values(by='group_no')
                 print("[DONE"+str(self.done_job)+"/"+str(self.n_job)+"] processor ",source," finished work!")
@@ -2095,7 +2096,6 @@ class ThreadingforFeatureSelection(object):
                 outputfilepath=os.path.join("./",'fs_'+self.title+'__output_scores.csv')
                 self.results_with_score.to_csv(outputfilepath, index=False)
                 os.chmod(outputfilepath, 0o776)
-                self.done_job += 1
                 if self.n_job == self.done_job: # finished all jobs
                     break
             elif tag == self.tags.EXIT_RES:
@@ -2298,8 +2298,8 @@ def mergecsv_mpi(metadata_filename, elapsed_time=0.0):
                 # if dataset is bigger than 1G -> use parquet instead of csv type to read/write
                 if use_converted:
                     outputfilepath=os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
-                    outputfilepath=outputfilepath.split('.csv')[0]+'.pq'
                     if ( generated_df.size / 1000000 ) > 100 :
+                        outputfilepath=outputfilepath.split('.csv')[0]+'.pq'
                         print(">> Saving converted dataset into parquet datatype (>100M)..."+str(outputfilepath))
                         generated_df.to_parquet(outputfilepath)
                     else:
@@ -2474,8 +2474,11 @@ def load_entire_dataset(params, reduce_mem_usage=False):
                 title = gui_params['autofe_system_attr']['title']
             else:
                 title = ""
+    csvpath = os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
     pqpath = os.path.join(gui_params['ml_file_path'],'converted_'+gui_params['ml_file_name'])
     pqpath = pqpath.split('.csv')[0]+'.pq'
+    if os.path.exists(csvpath):
+        return pd.read_csv(csvpath)
     if os.path.exists(pqpath):
         return pd.read_parquet(pqpath)
     if os.path.exists('fm_'+title+"__output_list.csv"):
@@ -2916,26 +2919,47 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     else:
         num_cv = 0
     #### 인코딩 하기 전이 오리지널 데이터셋이다
-    if encoding == 'ohe':
-        #ori_dataset = dataset.copy()
-        dataset = pd.get_dummies(dataset)
-        # Align the dataframes by the columns
-        # No categorical indices to record
-        cat_indices = 'auto'
-    # Integer label encoding
-    elif encoding == 'le':
-        # Create a label encoder
-        from sklearn.preprocessing import LabelEncoder
-        label_encoder = LabelEncoder()
-        # List for storing categorical indices
-        cat_indices = []
-        # Iterate through each column
-        for i, col in enumerate(dataset):
-            if dataset[col].dtype == 'object':
-                # Map the categorical features to integers
-                dataset[col] = label_encoder.fit_transform(np.array(dataset[col].astype(str)).reshape((-1,)))
-                # Record the categorical indices
-                cat_indices.append(i)
+    #if encoding == 'ohe':
+    #    #ori_dataset = dataset.copy()
+    #    dataset = pd.get_dummies(dataset)
+    #    # Align the dataframes by the columns
+    #    # No categorical indices to record
+    #    cat_indices = 'auto'
+    ## Integer label encoding
+    #elif encoding == 'le':
+    #    # Create a label encoder
+    #    from sklearn.preprocessing import LabelEncoder
+    #    label_encoder = LabelEncoder()
+    #    # List for storing categorical indices
+    #    cat_indices = []
+    #    # Iterate through each column
+    #    for i, col in enumerate(dataset):
+    #        if dataset[col].dtype == 'object':
+    #            # Map the categorical features to integers
+    #            dataset[col] = label_encoder.fit_transform(np.array(dataset[col].astype(str)).reshape((-1,)))
+    #            # Record the categorical indices
+    #            cat_indices.append(i)
+    ##########
+    def auto_encoding(dataset, encoding, target='X'):
+        if encoding == 'ohe':
+            return  pd.get_dummies(dataset)
+        elif encoding == 'le':
+            # Create a label encoder
+            from sklearn.preprocessing import LabelEncoder
+            label_encoder = LabelEncoder()
+            # Iterate through each column
+            for i, col in enumerate(dataset):
+                if dataset[col].dtype == 'object':
+                    # Map the categorical features to integers
+                    if target == 'X':
+                        label_col = np.array(dataset[col].astype(str)).reshape((-1,))
+                    elif target =='y':
+                        label_col = dataset[col]
+                    dataset[col] = label_encoder.fit_transform(label_col)
+                    return dataset
+    dataset = auto_encoding(dataset, encoding, target='X')
+    labels = auto_encoding(labels, encoding='le', target='y')
+    ##########
     gc.collect()
     features = dataset.columns.tolist()
     n_features = len(features)
@@ -3270,10 +3294,12 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     "min_child_samples":20,
     "verbose":-1,
     }
+    should_be_terminated = False
     if gui_params["autofe_system_attr"]['n_proc'] > 10:
         if rank%30>1:
-            import sys
-            sys.exit()
+            #import sys
+            #sys.exit()
+            should_be_terminated = True
         def_hparams = def_hparams_gpu
     else:
         def_hparams = def_hparams_small
@@ -3295,8 +3321,9 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
     ##############################################################
     while True:
         ### 월요일 추가테스트 필요
-        #if not gpu_available: # deprecated 2021-08-30 because of cpu only params # resume 1028
-        #    comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+        if should_be_terminated: # deprecated 2021-08-30 because of cpu only params # resume 1028
+            comm.send(None,dest=0,tag=tags.EXIT_RES) # train only gpus
+            break
         ###
         comm.send(None, dest=0, tag=tags.READY)
         #each_sub = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
@@ -3326,6 +3353,7 @@ def featureselection_mpi(metadata_filename, elapsed_time=0.0): # 20210720 add
         while True:
             if provider.finished:
                 print("ALL finishied")
+                comm.Abort()
                 break
 
 ##########################################################################
