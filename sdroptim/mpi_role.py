@@ -2958,7 +2958,6 @@ def model_score(params, job_to_do, dataset, labels, hparams):
                     dataset[col] = label_encoder.fit_transform(label_col)
                     return dataset
     dataset = auto_encoding(dataset, encoding, target='X')
-    labels = auto_encoding(labels, encoding='le', target='y')
     ##########
     gc.collect()
     features = dataset.columns.tolist()
@@ -2976,6 +2975,7 @@ def model_score(params, job_to_do, dataset, labels, hparams):
     labels = labels.loc[sorted(list(set(dataset.index)&set(labels.index)))] ## 0811 이게 동작을 안하나??
     global label_names
     label_names = labels[target_col].unique()
+    labels = auto_encoding(labels, encoding='le', target='y')
     LightGBM_num_boost_round = def_hparams['num_boost_round']
     ################################
     if 'encoding' in def_hparams:
