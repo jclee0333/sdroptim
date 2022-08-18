@@ -2045,6 +2045,8 @@ class ThreadingforFeatureSelection(object):
             self.comm.Abort() # nothing to do
         else:
             self.n_job = len(self.fs_job_list)
+            if self.n_job == 0:
+                self.comm.Abort()
             self.remaining_fs_job_list = self.fs_job_list.copy()
         if self.filter_based_methods: # not null
             if use_original:
