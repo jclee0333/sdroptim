@@ -97,7 +97,7 @@ def retrieve_model(algorithm_name, model, trial_number, score, metric = None, la
         algorithm_name=algorithm_name, file_prefix=file_prefix, model=model,                            \
         trial_number=trial_number, score=score, direction=direction,                                    \
         make_png=make_png, vs=vs, metric=metric, label_names=label_names)
-
+    return score
     ######### part 1 remaining top_n_each_algo
 
 def compare_and_search(target_path, top_n, specific_extension, algorithm_name, file_prefix, model, trial_number, score, direction,
@@ -107,7 +107,7 @@ def compare_and_search(target_path, top_n, specific_extension, algorithm_name, f
         extension = ""
     else:
         extension = specific_extension
-    cur_files = glob.glob(target_path+"*"+extension)
+    cur_files = list(set(glob.glob(target_path+"*"+extension)) - set(glob.glob(target_path+"*"+".png")))
     if len(cur_files) >= top_n:
         cur_scores = {}
         for each in cur_files:
@@ -265,13 +265,11 @@ def generate_default_searching_space_file(out_file_pathname=None):
     "Regression":{
         "MLR":
         {
-        "cv":{"low":5, "high":5},
         "fit_intercept":{"choices":["True","False"]},
         "normalize":{"choices":["False","True"]}
         },
         "SVM":
         {
-        "cv":{"low":5, "high":5},
         "C":{"low":-10.0, "high":10.0, "transformation":"2**x"},
         "kernel":{"choices":[ "rbf", "linear", "poly","sigmoid"]},
         "degree":{"low":2, "high":5},
@@ -282,7 +280,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "RF":
         {
-        "cv":{"low":5, "high":5},
         "n_estimators":{"low":1, "high":1000},
         "criterion":{"choices":["mse", "mae"]},
         "min_samples_split":{"low":0.0, "high":1.0},
@@ -290,14 +287,12 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "BT":
         {
-        "cv":{"low":5, "high":5},
         "n_estimators":{"low":1, "high":2000},
         "learning_rate":{"low":1e-5, "high":1e-1},
         "loss":{"choices":["linear","square","exponential"]}
         },
         "DL_Pytorch":
         {
-        "cv":{"low":5, "high":5},
         "model":{"choices":["FNN"]},
         "batch_size":{"choices":[32,64,128,256]},
         "epochs":{"choices":[5, 10, 20]},
@@ -311,7 +306,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "XGBoost":
         {
-        "cv":{"low":5, "high":5},
         "__comment__":"general params: booster(type), objective",
         "eval_metric":{"choices":["rmse"]},
         "num_boost_round":{"choices":[100, 500, 1000, 2000]},
@@ -334,7 +328,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "LightGBM":
         {
-        "cv":{"low":5, "high":5},
         "objective":{"choices":["regression"]},
         "num_boost_round":{"choices":[100,500,1000, 2000]},
         "metric":{"choices":["rmse"]},
@@ -352,7 +345,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
     "Classification":{
         "SVM":
         {
-        "cv":{"low":5, "high":5},
         "__comment__":"default hyperparameters of SVM are selected from q0.05 to q0.95 @Tunability (P.Probst et al., 2019)",
         "C":{"low":0.025, "high":943.704},
         "kernel":{"choices":[ "rbf", "linear", "poly","sigmoid"]},
@@ -363,7 +355,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "RF":
         {
-        "cv":{"low":5, "high":5},
         "__comment__":"default hyperparameters of RF are selected from q0.05 to q0.95 @Tunability (P.Probst et al., 2019)",
         "n_estimators":{"low":203, "high":1909},
         "criterion":{"choices":["gini", "entropy"]},
@@ -376,14 +367,12 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "BT":
         {
-        "cv":{"low":5, "high":5},
         "n_estimators":{"low":1, "high":2000},
         "learning_rate":{"low":1e-5, "high":1e-1},
         "algorithm":{"choices":["SAMME.R","SAMME"]}
         },
         "DL_Pytorch":
         {
-        "cv":{"low":5, "high":5},
         "model":{"choices":["FNN","CNN"]},
         "batch_size":{"choices":[32,64,128,256]},
         "epochs":{"choices":[5, 10, 20]},
@@ -397,7 +386,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "XGBoost":
         {
-        "cv":{"low":5, "high":5},
         "__comment__":"general params: booster(type), objective",
         "eval_metric":{"choices":["mlogloss"]},
         "num_boost_round":{"choices":[100, 500, 1000, 2000]},
@@ -420,7 +408,6 @@ def generate_default_searching_space_file(out_file_pathname=None):
         },
         "LightGBM":
         {
-        "cv":{"low":5, "high":5},
         "objective":{"choices":["multiclass"]},
         "num_boost_round":{"choices":[100,500,1000, 2000]},
         "metric":{"choices":["multi_logloss"]},
@@ -441,6 +428,7 @@ def generate_default_searching_space_file(out_file_pathname=None):
     try:
         with open(out_file_pathname, 'w') as f:
             f.write(default_strings)
+        os.chmod(out_file_pathname, 0o776) # add permission 201030            
         print("Successively generated default searching space! -> searching_space_automl.json")
     except:
         print("Cannot generate default searching space!")
